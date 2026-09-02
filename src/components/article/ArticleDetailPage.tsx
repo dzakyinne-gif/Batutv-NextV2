@@ -286,6 +286,22 @@ export const BacaJugaBlock: React.FC<{
   );
 };
 
+const safeFormatTags = (rawTags: unknown, fallback: { name: string; slug: string }[] = defaultSpecificArticle.tags): { name: string; slug: string }[] => {
+  if (!rawTags || !Array.isArray(rawTags) || rawTags.length === 0) return fallback;
+  return rawTags.map((t) => {
+    if (typeof t === 'string') {
+      return { name: t, slug: t.toLowerCase().replace(/[^a-z0-9]+/g, '-') };
+    }
+    if (t && typeof t === 'object') {
+      const name = String((t as any).name || (t as any).title || (t as any).tag || '');
+      const slug = String((t as any).slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
+      return { name, slug };
+    }
+    const str = String(t ?? '');
+    return { name: str, slug: str.toLowerCase().replace(/[^a-z0-9]+/g, '-') };
+  });
+};
+
 export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
   slug,
   article,
@@ -373,7 +389,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
           subheading2: 'Dukungan Berbagai Pihak',
           paragraphs2: article.content && article.content.length > 4 ? article.content.slice(4) : defaultSpecificArticle.contentSections.paragraphs2
         },
-        tags: article.tags ? article.tags.map(t => ({ name: t, slug: t.toLowerCase().replace(/[^a-z0-9]+/g, '-') })) : defaultSpecificArticle.tags
+        tags: safeFormatTags(article.tags)
       };
     }
 
@@ -442,9 +458,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
             subheading2: 'Dukungan dan Rencana Lanjutan',
             paragraphs2: rawParagraphs.slice(4).length > 0 ? rawParagraphs.slice(4) : defaultSpecificArticle.contentSections.paragraphs2,
           },
-          tags: adminMatch.tags && adminMatch.tags.length > 0
-            ? adminMatch.tags.map((t) => ({ name: t, slug: t.toLowerCase().replace(/[^a-z0-9]+/g, '-') }))
-            : defaultSpecificArticle.tags,
+          tags: safeFormatTags(adminMatch.tags),
         };
       }
 
@@ -485,7 +499,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
             subheading2: 'Langkah dan Koordinasi Berkelanjutan',
             paragraphs2: match.content.slice(4).length > 0 ? match.content.slice(4) : defaultSpecificArticle.contentSections.paragraphs2
           },
-          tags: match.tags.map(t => ({ name: t, slug: t.toLowerCase().replace(/[^a-z0-9]+/g, '-') }))
+          tags: safeFormatTags(match.tags)
         };
       }
     }
@@ -1004,7 +1018,7 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({
                 {(() => {
                   const sanitized = sanitizeArticleHtml(currentData.fullHtmlContent);
                   const processedHtml = sanitized.replace(
-                    /^(\s*<p[^>]*>)?(BatuTV\s*\/\s*Suara\s*Media|Suara\s*Media|BatuTV)?(\s*[–—\-]\s*)?/i,
+                    /^(\s*<p[^>]*>)?(BatuTV\s*\/\s*Suara\s*Media|Suara\s*Media|BatuTV)?(\s*[–—-]\s*)?/i,
                     (match, pTag) => (pTag || '<p>') + '<strong class="font-bold text-slate-900">BatuTV / Suara Media</strong> – '
                   );
 

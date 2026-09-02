@@ -22,6 +22,7 @@ interface PrimaryNavigationProps {
   isScrolled?: boolean;
   activeSlug?: string;
   currentPath?: string;
+  currentUser?: { name: string; role: string } | null;
   onSelectNav?: (slug: string, url?: string) => void;
   onNavigate?: (url: string) => void;
   onGoHome?: () => void;
@@ -44,6 +45,7 @@ export const PrimaryNavigation: React.FC<PrimaryNavigationProps> = ({
   isScrolled = false,
   activeSlug = 'home',
   currentPath = '/',
+  currentUser,
   onSelectNav,
   onNavigate,
   onGoHome,
@@ -321,24 +323,34 @@ export const PrimaryNavigation: React.FC<PrimaryNavigationProps> = ({
                 </button>
               )}
 
-              {/* 2. USER PROFILE / CMS ACCOUNT BUTTON (White ring circular avatar silhouette) */}
+              {/* 2. USER PROFILE / CMS ACCOUNT BUTTON */}
               <button
                 id="s02-btn-user"
-                onClick={onOpenUserAccount}
-                title="Masuk ke Akun / Login CMS"
-                aria-label="Masuk ke Akun"
-                className="menu-hover-animated h-full px-1.5 sm:px-2 hover:bg-[#c81e28] text-white transition-all focus:outline-none cursor-pointer flex items-center justify-center"
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (onOpenUserAccount) {
+                    onOpenUserAccount();
+                  } else if (onNavigate) {
+                    onNavigate(currentUser ? '/batutv-control/dashboard' : '/batutv-control/login');
+                  }
+                }}
+                title={currentUser ? `Buka Dashboard CMS (${currentUser.name} - ${currentUser.role})` : "Masuk ke Akun Redaksi / Login CMS"}
+                aria-label={currentUser ? `Dashboard CMS (${currentUser.name})` : "Masuk ke Akun Redaksi"}
+                className="menu-hover-animated h-full flex items-center gap-1.5 px-2 sm:px-2.5 hover:bg-[#c81e28] text-white transition-all focus:outline-none cursor-pointer"
               >
-                <div className="w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-full border-[1.5px] border-white bg-zinc-600/90 flex items-center justify-center overflow-hidden shadow-2xs">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="w-4 h-4 text-white fill-white translate-y-0.5"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                  </svg>
+                <div className={`w-5 h-5 rounded-full border-[1.5px] flex items-center justify-center overflow-hidden shadow-2xs ${
+                  currentUser ? 'border-amber-300 bg-amber-500/30 text-amber-200 font-extrabold text-[10px]' : 'border-white bg-white/20 text-white'
+                }`}>
+                  {currentUser ? (
+                    currentUser.name.charAt(0).toUpperCase()
+                  ) : (
+                    <User className="w-3.5 h-3.5 text-white stroke-[2.5]" />
+                  )}
                 </div>
+                <span className="font-black text-[11px] sm:text-[11.5px] uppercase tracking-tight text-white leading-none hidden lg:inline">
+                  {currentUser ? currentUser.name.split(' ')[0] : 'LOGIN'}
+                </span>
               </button>
 
               {/* 3. SEARCH MAGNIFYING BUTTON (Bold white magnifying glass) */}

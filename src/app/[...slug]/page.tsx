@@ -3,6 +3,6 @@
 import React from 'react';
 import App from '@/src/App';
 
-export default function RootHomePage() {
+export default function CatchAllDynamicPage() {
   return <App />;
 }

@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { NotFoundPage } from '@/src/components/common/NotFoundPage';
 

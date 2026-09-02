@@ -4,11 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
-    "start": "node dist/server.cjs",
-    "preview": "vite preview",
-    "clean": "rm -rf dist server.js",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 3000",
+    "server": "tsx server.ts",
     "seed:firestore": "tsx src/scripts/seedFirestore.ts",
     "backup:verify": "tsx src/scripts/verifyBackup.ts",
     "audit:integrity": "tsx src/scripts/runIntegrityAudit.ts",
@@ -34,19 +33,37 @@
     "audit:final": "tsx src/scripts/runEnterpriseReadinessAudit.ts",
     "audit:all": "tsx src/scripts/runEnterpriseReadinessAudit.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "lint": "eslint ."
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "tsc --noEmit"
+    ]
   },
   "dependencies": {
+    "@eslint/eslintrc": "^3.3.7",
+    "@eslint/js": "^10.0.1",
     "@google/genai": "^2.4.0",
+    "@t3-oss/env-nextjs": "^0.13.11",
+    "@tailwindcss/postcss": "^4.3.3",
     "@tailwindcss/vite": "^4.1.14",
+    "@typescript-eslint/eslint-plugin": "^8.69.0",
+    "@typescript-eslint/parser": "^8.69.0",
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
+    "eslint": "^10.9.1",
+    "eslint-config-next": "^16.3.4",
     "express": "^4.21.2",
     "firebase": "^12.18.0",
     "firebase-admin": "^14.3.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.4.1",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
+    "next": "^16.3.4",
+    "postcss": "^8.5.26",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "tailwind-merge": "^3.6.0",
@@ -54,13 +71,14 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
+    "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
+    "@types/react": "19.2.18",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.3",
-    "@types/express": "^4.17.21"
+    "vite": "^6.2.3"
   }
 }

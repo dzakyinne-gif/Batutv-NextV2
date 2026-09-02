@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { ArticleDetailPage, defaultSpecificArticle } from '@/src/components/article/ArticleDetailPage';
 import { resolveArticleSlug } from '@/src/utils/slugResolver';
@@ -7,7 +9,6 @@ interface ArticlePageProps {
 }
 
 export default function NextArticleDetailPage({ params }: ArticlePageProps) {
-  // Support both synchronous and promise-based params (Next.js 15+)
   const unwrappedParams = typeof (params as any)?.then === 'function' 
     ? (params as any)
     : (params as { slug: string });

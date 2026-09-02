@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import {
   categoriesData,
@@ -114,9 +116,15 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // If user is already authenticated and lands on /batutv-control/login, update address bar to /batutv-control/dashboard
+  // If user is already authenticated and lands on /batutv-control/login or /login, update address bar to /batutv-control/dashboard
   useEffect(() => {
-    if (authAdmin && currentPath === '/batutv-control/login') {
+    if (
+      authAdmin &&
+      (currentPath === '/batutv-control/login' ||
+        currentPath === '/login' ||
+        currentPath === '/masuk' ||
+        currentPath === '/admin')
+    ) {
       try {
         window.history.replaceState({}, '', '/batutv-control/dashboard');
       } catch {
@@ -438,6 +446,16 @@ export default function App() {
     : '';
   const isAuthorValid = isAuthorArchivePage && Boolean(authorArchiveSlug) && isAuthorExists(authorArchiveSlug);
 
+  // Check if current route is Login / Admin
+  const isLoginRoute =
+    currentPath === '/login' ||
+    currentPath === '/masuk' ||
+    currentPath === '/admin' ||
+    currentPath === '/batutv-control' ||
+    currentPath === '/batutv-control/login';
+
+  const isAdminRoute = currentPath.startsWith('/batutv-control') || isLoginRoute;
+
   // Check if current route is Static Information Page (/tentang-kami, /kontak-kami, /pedoman-media-siber, etc.)
   const isPotentialInformationPage =
     currentPath !== '/' &&
@@ -449,7 +467,7 @@ export default function App() {
     !isCategoryArchivePage &&
     !isTagArchivePage &&
     !isAuthorArchivePage &&
-    !currentPath.startsWith('/batutv-control');
+    !isAdminRoute;
 
   const informationPageSlug = isPotentialInformationPage
     ? currentPath.split('?')[0].split('#')[0].replace(/^\/+|\/+$/g, '').trim()
@@ -465,8 +483,8 @@ export default function App() {
     (isAuthorArchivePage && !isAuthorValid) ||
     (isPotentialInformationPage && !isInformationPageValid);
 
-  // Handle /batutv-control/login and Admin Routes
-  if (currentPath.startsWith('/batutv-control')) {
+  // Handle /batutv-control/login, /login, and Admin Routes
+  if (isAdminRoute) {
     // If not authenticated, redirect all protected admin routes to login
     if (!authAdmin) {
       return (
@@ -482,7 +500,7 @@ export default function App() {
             saveAdminSession(user);
             setAuthAdmin(user);
             const targetPath =
-              currentPath && currentPath !== '/batutv-control/login'
+              currentPath && !isLoginRoute
                 ? currentPath
                 : '/batutv-control/dashboard';
             navigateTo(targetPath);
@@ -492,8 +510,8 @@ export default function App() {
       );
     }
 
-    // If authenticated and currently on login page, redirect to dashboard
-    if (currentPath === '/batutv-control/login') {
+    // If authenticated and currently on login page or base admin route, redirect to dashboard
+    if (isLoginRoute) {
       return (
         <DashboardLayout
           currentPath="/batutv-control/dashboard"
@@ -543,8 +561,9 @@ export default function App() {
           setIsSearchOpen(true);
         }}
         onOpenUserAccount={() => {
-          navigateTo('/batutv-control/login');
+          navigateTo(authAdmin ? '/batutv-control/dashboard' : '/batutv-control/login');
         }}
+        currentUser={authAdmin}
         onOpenMenu={() => setIsMobileMenuOpen(true)}
         onGoHome={handleGoHome}
       />
@@ -554,11 +573,12 @@ export default function App() {
         isScrolled={isScrolled}
         activeSlug={isCategoryArchivePage && isCategoryValid ? categoryArchiveSlug : activeCategory}
         currentPath={currentPath}
+        currentUser={authAdmin}
         onSelectNav={handleSelectCategory}
         onNavigate={navigateTo}
         onGoHome={handleGoHome}
         onOpenLiveStream={() => setIsLiveStreamOpen(true)}
-        onOpenUserAccount={() => navigateTo('/batutv-control/login')}
+        onOpenUserAccount={() => navigateTo(authAdmin ? '/batutv-control/dashboard' : '/batutv-control/login')}
         onOpenSearch={() => {
           setSearchInitialQuery('');
           setIsSearchOpen(true);
@@ -782,7 +802,7 @@ export default function App() {
         categories={categoriesData}
         onSelectCategory={handleSelectCategory}
         onOpenLiveStream={() => setIsLiveStreamOpen(true)}
-        onNavigateAdmin={() => navigateTo('/batutv-control/login')}
+        onNavigateAdmin={() => navigateTo(authAdmin ? '/batutv-control/dashboard' : '/batutv-control/login')}
         onNavigate={navigateTo}
       />
 
@@ -849,7 +869,7 @@ export default function App() {
         }}
         hotTopics={hotTopicsData}
         onSelectTopic={handleSelectTopic}
-        onNavigateLogin={() => navigateTo('/batutv-control/login')}
+        onNavigateLogin={() => navigateTo(authAdmin ? '/batutv-control/dashboard' : '/batutv-control/login')}
       />
     </div>
   );

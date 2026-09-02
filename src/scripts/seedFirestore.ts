@@ -199,7 +199,6 @@ export async function runFirestoreSeeder(options: SeedOptions = {}) {
 
   for (const cmsUser of INITIAL_CMS_USERS) {
     if (!dryRun) {
-      let uid = cmsUser.id;
       try {
         // Check if user exists in Firebase Auth
         let authRecord: UserRecord | null = null;

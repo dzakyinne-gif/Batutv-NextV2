@@ -10,6 +10,9 @@ import {
   Twitter,
   Phone,
   Home,
+  User,
+  ShieldCheck,
+  LogIn,
 } from 'lucide-react';
 import { CategoryItem } from '../types/news';
 import { NavItemWithChildren } from '../types/navigation';
@@ -39,6 +42,7 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
   onNavigate,
   hotTopics,
   onSelectTopic,
+  onNavigateLogin,
 }) => {
   const [navTree, setNavTree] = useState<NavItemWithChildren[]>(() => getPublicNavigationTree());
   const [expandedParents, setExpandedParents] = useState<Record<string, boolean>>({
@@ -94,17 +98,40 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
     }
   };
 
+  const handleLoginClick = () => {
+    onClose();
+    if (onNavigateLogin) {
+      onNavigateLogin();
+    } else if (onNavigate) {
+      onNavigate('/batutv-control/login');
+    }
+  };
+
   return (
     <div id="mobile-menu-backdrop" className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex md:hidden">
       <div
         id="mobile-menu-drawer"
         className="bg-white w-[88%] max-w-sm h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-300 overflow-y-auto"
       >
-        {/* Top Bar with Close Button (X) */}
-        <div className="flex items-center justify-end p-3 border-b border-slate-100">
+        {/* Top Bar with Login Button + Close Button (X) */}
+        <div className="flex items-center justify-between p-3.5 border-b border-slate-100 bg-slate-50/80">
+          <button
+            id="mobile-menu-login-btn"
+            type="button"
+            onClick={handleLoginClick}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:text-red-600 hover:border-red-200 text-xs font-bold transition shadow-2xs cursor-pointer active:scale-95"
+            aria-label="Masuk ke Akun Redaksi / Login CMS"
+            title="Masuk ke Akun / Login CMS"
+          >
+            <div className="w-5 h-5 rounded-full bg-red-600 text-white flex items-center justify-center">
+              <User className="w-3 h-3" />
+            </div>
+            <span>Masuk / Login CMS</span>
+          </button>
+
           <button
             onClick={onClose}
-            className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition"
+            className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 rounded-full transition cursor-pointer"
             aria-label="Tutup Menu"
           >
             <X className="w-5 h-5 stroke-[2.5]" />

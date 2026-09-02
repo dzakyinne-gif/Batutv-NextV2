@@ -145,6 +145,31 @@ export const ROLE_PERMISSIONS_MATRIX: Record<UserRole, RolePermissionDetail> = {
 // Initial Seed Users mapped to Author Master Data
 export const INITIAL_CMS_USERS: CMSUser[] = [
   {
+    id: 'usr-000',
+    fullName: 'Dzaky Inne (Owner/Super Admin)',
+    username: 'dzakyinne',
+    email: 'dzakyinne@gmail.com',
+    password: 'Password@123',
+    role: 'admin',
+    status: 'aktif',
+    lastLogin: '2026-09-01T08:00:00.000Z',
+    lastLoginDetails: {
+      browser: 'Chrome (Web)',
+      device: 'Admin Console',
+      ipAddress: '127.0.0.1',
+      status: 'success',
+      timestamp: '2026-09-01T08:00:00.000Z',
+    },
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-09-01T08:00:00.000Z',
+    authorId: 'aut-001',
+    authorName: 'Dzaky Inne',
+    forcePasswordChange: false,
+    failedLoginAttempts: 0,
+    sessionsCount: 1,
+    notes: 'Pemilik Sistem & Super Administrator Utama BatuTV',
+  },
+  {
     id: 'usr-001',
     fullName: 'Ahmad Fauzi, S.I.Kom',
     username: 'ahmad.fauzi',

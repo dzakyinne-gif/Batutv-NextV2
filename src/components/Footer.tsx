@@ -374,6 +374,21 @@ export const Footer: React.FC<FooterProps> = ({ onNavigateAdmin, onNavigate }) =
                   Terms of Service
                 </a>
               )}
+              <a
+                href="/batutv-control/login"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (onNavigateAdmin) {
+                    onNavigateAdmin();
+                  } else if (onNavigate) {
+                    onNavigate('/batutv-control/login');
+                  }
+                }}
+                className="text-slate-400 hover:text-red-400 transition-colors inline-flex items-center gap-1 font-semibold cursor-pointer"
+                title="Masuk ke Akun Redaksi / Login CMS"
+              >
+                <span>Login CMS</span>
+              </a>
             </nav>
           );
         })()}

@@ -95,12 +95,17 @@ export async function seedAllDataToFirestore(
     summary['system_settings'] = 3;
 
     // 10. Articles
-    onProgress?.({ totalEntities: 11, completedEntities: 10, currentEntity: 'Artikel Berita', summary });
+    onProgress?.({ totalEntities: 12, completedEntities: 10, currentEntity: 'Artikel Berita', summary });
     await writeCollectionBatch('articles', initialAdminArticles);
 
     // 11. Videos
-    onProgress?.({ totalEntities: 11, completedEntities: 11, currentEntity: 'Video Liputan', summary });
+    onProgress?.({ totalEntities: 12, completedEntities: 11, currentEntity: 'Video Liputan', summary });
     await writeCollectionBatch('videos', initialAdminVideos);
+
+    // 12. Users & Admins
+    onProgress?.({ totalEntities: 12, completedEntities: 12, currentEntity: 'Pengguna & Admin CMS', summary });
+    const safeUsers = INITIAL_CMS_USERS.map(({ password, ...u }) => ({ ...u, passwordSet: true }));
+    await writeCollectionBatch('users', safeUsers);
 
     return {
       success: true,

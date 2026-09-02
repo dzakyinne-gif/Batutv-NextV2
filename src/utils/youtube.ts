@@ -25,7 +25,7 @@ export function extractYouTubeVideoId(input: string): string | null {
 
   try {
     // Regex matching all standard YouTube URL patterns
-    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+    const regex = /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/i;
     const match = trimmed.match(regex);
 
     if (match && match[1] && match[1].length === 11) {

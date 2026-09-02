@@ -1,12 +1,12 @@
 {
-  "projectId": "batutv-portal",
-  "appId": "1:358249286762:web:63141bd5448225a0428e13",
-  "apiKey": "AIzaSyA4fMEJDGRk1XqfLHWGEDjcuCtnn8D9zWo",
-  "authDomain": "batutv-portal.firebaseapp.com",
+  "projectId": "batutv-next",
+  "appId": "1:1046515034011:web:5ab8c33498d5747d69a33e",
+  "apiKey": "AIzaSyCdC_ngs80t7srxlDkIgXJSB4rMK7wyW2w",
+  "authDomain": "batutv-next.firebaseapp.com",
   "firestoreDatabaseId": "(default)",
-  "storageBucket": "batutv-portal.firebasestorage.app",
-  "messagingSenderId": "358249286762",
-  "measurementId": "G-21E3PFG0EY",
+  "storageBucket": "batutv-next.firebasestorage.app",
+  "messagingSenderId": "1046515034011",
+  "measurementId": "G-PSJ6YFZR8W",
   "oAuthClientId": "",
   "recaptchaSiteKey": ""
 }

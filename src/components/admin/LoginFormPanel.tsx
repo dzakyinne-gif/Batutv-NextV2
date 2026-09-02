@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
-import { User, Lock, Eye, EyeOff, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, Loader2, AlertCircle, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
 import { LoginCredentials } from '../../types/auth';
 
 interface LoginFormPanelProps {
   onLogin: (credentials: LoginCredentials) => Promise<{ success: boolean; message?: string }>;
+  onGoogleLogin?: () => Promise<{ success: boolean; message?: string }>;
   onForgotPassword: () => void;
   onRegisterContact: () => void;
 }
 
 export const LoginFormPanel: React.FC<LoginFormPanelProps> = ({
   onLogin,
+  onGoogleLogin,
   onForgotPassword,
   onRegisterContact,
 }) => {
@@ -64,8 +66,35 @@ export const LoginFormPanel: React.FC<LoginFormPanelProps> = ({
     }
   };
 
-  const handleSocialClick = (provider: string) => {
-    setErrorMessage(`Autentikasi ${provider} dinonaktifkan untuk akun administrator CMS. Silakan gunakan email dan password terdaftar.`);
+  const handleGoogleSignIn = async () => {
+    if (isLoading) return;
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setIsLoading(true);
+
+    try {
+      if (onGoogleLogin) {
+        const res = await onGoogleLogin();
+        if (res.success) {
+          setSuccessMessage('Login Google berhasil! Mengalihkan...');
+          return;
+        } else if (res.message) {
+          setErrorMessage(res.message);
+        }
+      } else {
+        setErrorMessage('Fitur Google Sign-In sedang disiapkan untuk domain internal.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Gagal login menggunakan Google.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fillDemoAccount = (demoEmail: string, demoPass: string) => {
+    setEmail(demoEmail);
+    setPassword(demoPass);
+    setErrorMessage(null);
   };
 
   return (
@@ -77,13 +106,39 @@ export const LoginFormPanel: React.FC<LoginFormPanelProps> = ({
         {/* ========================================================= */}
         {/* HEADING & SUBTITLE                                        */}
         {/* ========================================================= */}
-        <div className="mb-6 sm:mb-8 text-left">
+        <div className="mb-5 sm:mb-6 text-left">
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
             Selamat Datang di <span className="text-[#e50914]">BatuTV</span>
           </h1>
-          <p className="text-sm text-slate-500 font-normal mt-2">
-            Silakan masuk ke akun Anda
+          <p className="text-sm text-slate-500 font-normal mt-1.5">
+            Silakan masuk ke akun manajemen &amp; redaksi Anda
           </p>
+        </div>
+
+        {/* Quick Demo Fill Pills for Testing */}
+        <div className="mb-5 p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
+          <div className="flex items-center gap-1.5 text-slate-600 font-bold mb-2">
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            <span>Akun Demo Cepat (1-Klik Isi):</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => fillDemoAccount('admin@batutv.com', 'batutv2026')}
+              className="px-2.5 py-1 rounded-md bg-white hover:bg-red-50 hover:text-red-700 hover:border-red-300 border border-slate-200 text-slate-700 font-semibold text-[11px] transition shadow-2xs flex items-center gap-1 cursor-pointer"
+            >
+              <ShieldCheck className="w-3 h-3 text-red-600" />
+              <span>Super Admin</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => fillDemoAccount('redaksi@batutv.com', 'redaksi2026')}
+              className="px-2.5 py-1 rounded-md bg-white hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 border border-slate-200 text-slate-700 font-semibold text-[11px] transition shadow-2xs flex items-center gap-1 cursor-pointer"
+            >
+              <User className="w-3 h-3 text-blue-600" />
+              <span>Redaksi</span>
+            </button>
+          </div>
         </div>
 
         {/* ========================================================= */}
@@ -112,14 +167,14 @@ export const LoginFormPanel: React.FC<LoginFormPanelProps> = ({
         {/* ========================================================= */}
         {/* FORM CONTAINER                                            */}
         {/* ========================================================= */}
-        <form onSubmit={handleSubmit} noValidate className="space-y-4 sm:space-y-5">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4 sm:space-y-4.5">
           {/* EMAIL FIELD */}
           <div className="space-y-1.5 text-left">
             <label
               htmlFor="email"
               className="block text-xs sm:text-[13px] font-semibold text-slate-700 font-sans"
             >
-              Email
+              Email atau Username
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -128,11 +183,11 @@ export const LoginFormPanel: React.FC<LoginFormPanelProps> = ({
               <input
                 id="email"
                 name="email"
-                type="email"
+                type="text"
                 autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Masukkan email Anda"
+                placeholder="admin@batutv.com atau username"
                 required
                 disabled={isLoading}
                 className="w-full h-10 sm:h-11 pl-10 pr-4 rounded-lg border border-slate-300 text-sm text-slate-900 placeholder-slate-400 bg-white focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/15 transition-all disabled:bg-slate-50 disabled:cursor-not-allowed font-sans"
@@ -214,7 +269,7 @@ export const LoginFormPanel: React.FC<LoginFormPanelProps> = ({
               id="login-submit-button"
               type="submit"
               disabled={isLoading}
-              className="w-full h-11 sm:h-12 bg-[#e50914] hover:bg-[#d00812] active:scale-[0.99] text-white font-bold text-sm sm:text-[15px] rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-600"
+              className="w-full h-11 sm:h-12 bg-[#e50914] hover:bg-[#d00812] active:scale-[0.99] text-white font-bold text-sm sm:text-[15px] rounded-lg shadow-sm transition-all duration-150 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-600 cursor-pointer"
             >
               {isLoading ? (
                 <>
@@ -222,7 +277,7 @@ export const LoginFormPanel: React.FC<LoginFormPanelProps> = ({
                   <span>Memproses...</span>
                 </>
               ) : (
-                <span>Masuk</span>
+                <span>Masuk ke Akun</span>
               )}
             </button>
           </div>
@@ -231,40 +286,26 @@ export const LoginFormPanel: React.FC<LoginFormPanelProps> = ({
         {/* ========================================================= */}
         {/* SOCIAL LOGIN DIVIDER & BUTTONS                             */}
         {/* ========================================================= */}
-        <div className="relative my-6 text-center">
+        <div className="relative my-5 text-center">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-slate-200" />
           </div>
           <div className="relative inline-block px-3 bg-white text-xs text-slate-400 font-medium">
-            atau masuk dengan
+            atau masuk dengan akun Google
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-3 sm:gap-4">
-          {/* Facebook Button */}
-          <button
-            type="button"
-            onClick={() => handleSocialClick('Facebook')}
-            aria-label="Masuk dengan Facebook"
-            title="Masuk dengan Facebook"
-            className="w-11 h-10 sm:w-12 sm:h-10.5 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 active:scale-95 transition-all flex items-center justify-center shadow-2xs"
-          >
-            <div className="w-6 h-6 rounded-full bg-[#1877F2] flex items-center justify-center text-white">
-              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-              </svg>
-            </div>
-          </button>
-
+        <div className="flex items-center justify-center">
           {/* Google Button */}
           <button
             type="button"
-            onClick={() => handleSocialClick('Google')}
+            onClick={handleGoogleSignIn}
+            disabled={isLoading}
             aria-label="Masuk dengan Google"
             title="Masuk dengan Google"
-            className="w-11 h-10 sm:w-12 sm:h-10.5 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 active:scale-95 transition-all flex items-center justify-center shadow-2xs"
+            className="w-full h-10.5 sm:h-11 rounded-lg border border-slate-300 hover:border-slate-400 hover:bg-slate-50 active:scale-98 transition-all flex items-center justify-center gap-2.5 shadow-2xs cursor-pointer font-semibold text-xs sm:text-sm text-slate-700 disabled:opacity-60"
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
+            <svg className="w-4.5 h-4.5" viewBox="0 0 24 24">
               <path
                 fill="#4285F4"
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -282,20 +323,21 @@ export const LoginFormPanel: React.FC<LoginFormPanelProps> = ({
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
               />
             </svg>
+            <span>Masuk dengan Google</span>
           </button>
         </div>
 
         {/* ========================================================= */}
         {/* FOOTNOTE / REGISTER NOTE                                   */}
         {/* ========================================================= */}
-        <div className="mt-8 text-center text-xs sm:text-[13px] text-slate-500">
+        <div className="mt-6 text-center text-xs sm:text-[13px] text-slate-500">
           <span>Belum punya akun? </span>
           <button
             type="button"
             onClick={onRegisterContact}
-            className="text-blue-600 hover:text-blue-700 font-semibold hover:underline focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 rounded"
+            className="text-blue-600 hover:text-blue-700 font-semibold hover:underline focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-600 rounded cursor-pointer"
           >
-            Daftar sekarang
+            Hubungi Tim IT Redaksi
           </button>
         </div>
       </div>
