@@ -53,6 +53,13 @@
 - [ ] System settings & live Firestore syncing tools
 
 ### Fase 7 — Cutover, Cleanup & Final Audit
+- [ ] Aktifkan `strict: true` secara global di `tsconfig.json` dan verifikasi `npm run typecheck` (`tsc --noEmit`) bebas error
 - [ ] Run all 23 audit scripts (`npm run audit:all`)
 - [ ] Deprecate `App.tsx` and legacy `server.ts`
 - [ ] Final E2E testing and production verification
+
+## Rencana Transisi TypeScript Strict Mode (Target D-012)
+1. **Fase 1 (Fondasi)**: Root `tsconfig.json` disetel `strict: false` sementara agar file legacy (`App.tsx`, store transisi) tidak memblokir build awal. Seluruh modul baru di `src/lib/`, `src/config/`, dan `src/features/` wajib memiliki type annotations eksplisit dan validasi skema Zod.
+2. **Fase 2 s.d. Fase 6 (Vertical Slice Migrations)**: Setiap domain yang di-porting (`articles`, `auth`, `videos`, `taxonomy`, `pages/settings`) diwajibkan 100% type-safe tanpa `any` liar.
+3. **Fase 7 (Cutover)**: Setelah kode legacy dihapus, `strict: true` diaktifkan di `tsconfig.json`. Lolos `tsc --noEmit` menjadi syarat mutlak (blocking exit criteria) sebelum Fase 7 dapat ditandai 🟢 Selesai.
+

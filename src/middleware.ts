@@ -9,10 +9,7 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/batutv-control/:path*',
-    '/login',
-    '/admin',
-    '/masuk',
-    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };
+
 

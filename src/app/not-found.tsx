@@ -1,14 +1,6 @@
-'use client';
-
 import React from 'react';
-import { NotFoundPage } from '@/src/components/common/NotFoundPage';
+import ClientNotFoundWrapper from '@/src/components/common/ClientNotFoundWrapper';
 
 export default function GlobalNotFound() {
-  const handleGoHome = () => {
-    if (typeof window !== 'undefined') {
-      window.location.href = '/';
-    }
-  };
-
-  return <NotFoundPage onGoHome={handleGoHome} />;
+  return <ClientNotFoundWrapper />;
 }

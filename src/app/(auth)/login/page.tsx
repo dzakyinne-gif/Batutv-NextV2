@@ -1,9 +1,6 @@
-'use client';
-
 import React from 'react';
-import App from '@/src/App';
+import ClientAppWrapper from '@/src/components/ClientAppWrapper';
 
 export default function NextAuthLoginPage() {
-  return <App />;
+  return <ClientAppWrapper />;
 }
-

@@ -356,8 +356,11 @@ export const SubNavigationTab: React.FC<SubNavigationTabProps> = ({ onShowToast 
                       <div className="font-bold text-slate-900 flex items-center gap-2">
                         <span>{item.label}</span>
                         {item.openNewTab && (
-                          <ExternalLink className="w-3 h-3 text-slate-400" title="Buka Tab Baru" />
+                          <span title="Buka Tab Baru">
+                            <ExternalLink className="w-3 h-3 text-slate-400" />
+                          </span>
                         )}
+
                       </div>
                     </td>
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Skeleton } from '@/src/components/ui/skeleton';
 
-export function NewsBentoSkeleton() {
+export function ArticleBentoSkeleton() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full">
       {/* Main Feature Bento Card Skeleton */}

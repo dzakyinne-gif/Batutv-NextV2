@@ -4,12 +4,12 @@ import { Sparkles, Clock, User, ArrowUpRight } from 'lucide-react';
 import { NewsArticle } from '@/src/types/news';
 import { Badge } from '@/src/components/ui/badge';
 
-interface NewsBentoGridProps {
+interface ArticleBentoGridProps {
   articles: NewsArticle[];
   onSelectArticle: (article: NewsArticle) => void;
 }
 
-export function NewsBentoGrid({ articles, onSelectArticle }: NewsBentoGridProps) {
+export function ArticleBentoGrid({ articles, onSelectArticle }: ArticleBentoGridProps) {
   if (!articles || articles.length === 0) {
     return null;
   }

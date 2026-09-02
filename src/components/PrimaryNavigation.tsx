@@ -59,7 +59,7 @@ export const PrimaryNavigation: React.FC<PrimaryNavigationProps> = ({
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(() => getStoredSiteSettings());
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [selectedRegion, setSelectedRegion] = useState<string>('');
-  const navRef = useRef<HTMLElement | null>(null);
+  const navRef = useRef<HTMLDivElement | null>(null);
 
   // Sync navigation data and listen for live updates from Dashboard
   useEffect(() => {

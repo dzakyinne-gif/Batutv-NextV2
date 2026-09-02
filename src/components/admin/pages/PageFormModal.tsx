@@ -433,9 +433,10 @@ export const PageFormModal: React.FC<PageFormModalProps> = ({
         isOpen={isMediaPickerOpen}
         onClose={() => setIsMediaPickerOpen(false)}
         onSelectMedia={handleSelectMedia}
-        selectedMediaId={featuredImageMediaId}
-        mediaTypeFilter="image"
+        currentSelectedUrl={featuredImageUrl}
+        title="Pilih Gambar Unggulan Halaman"
       />
+
     </div>
   );
 };

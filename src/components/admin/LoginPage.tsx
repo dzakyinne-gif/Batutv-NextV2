@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { LoginBrandPanel } from './LoginBrandPanel';
 import { LoginFormPanel } from './LoginFormPanel';

@@ -355,8 +355,9 @@ export const VideoDetailPage: React.FC<VideoDetailPageProps> = ({
             url: baseDomain,
             logo: {
               '@type': 'ImageObject',
-              url: settings.logos.publisher || settings.logos.headerDesktop || `${baseDomain}/logo.png`,
+              url: settings.logos.headerDesktop || settings.logos.footer || `${baseDomain}/logo.png`,
             },
+
           },
           author: {
             '@type': 'Person',

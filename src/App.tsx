@@ -330,13 +330,15 @@ export default function App() {
   }, []);
 
   // Toggle Bookmark
-  const handleToggleBookmark = (article: NewsArticle) => {
+  const handleToggleBookmark = (articleOrId: NewsArticle | string) => {
+    const id = typeof articleOrId === 'string' ? articleOrId : articleOrId.id;
     setBookmarkedArticleIds((prev) =>
-      prev.includes(article.id)
-        ? prev.filter((id) => id !== article.id)
-        : [...prev, article.id]
+      prev.includes(id)
+        ? prev.filter((item) => item !== id)
+        : [...prev, id]
     );
   };
+
 
   const isBookmarked = (id: string) => bookmarkedArticleIds.includes(id);
 

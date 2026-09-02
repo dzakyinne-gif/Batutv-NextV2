@@ -202,6 +202,7 @@ export async function runFirestoreSeeder(options: SeedOptions = {}) {
       try {
         // Check if user exists in Firebase Auth
         let authRecord: UserRecord | null = null;
+        let uid = '';
         try {
           authRecord = await auth.getUserByEmail(cmsUser.email);
         } catch {

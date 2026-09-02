@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useEffect, useState } from 'react';
 import {
   Home,
@@ -263,7 +265,7 @@ export const NotFoundPage: React.FC<NotFoundPageProps> = ({
                   </h4>
 
                   <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
-                    <span className="font-medium text-slate-700">{post.author}</span>
+                    <span className="font-medium text-slate-700">{post.date}</span>
                     <span className="flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5" />
                       {post.time}
