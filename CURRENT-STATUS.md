@@ -1,23 +1,41 @@
 # Current Migration Status
 
+## Catatan Reset (2026-09-02)
+Riwayat git sebelumnya (commit d5d1204/614b844 dan progres Fase 1 yang pernah dilaporkan) tidak ditemukan
+di repository ini maupun di remote GitHub manapun. Proses migrasi dimulai ulang dari checkpoint baru dengan
+verifikasi command-by-command untuk setiap klaim progres.
+
 ## Overview
 - **Project**: BatuTV News Portal
 - **Target Framework**: Next.js 16 App Router (Full Stack)
 - **Database**: Firebase Firestore (`batutv-next`)
-- **Last Updated**: 2026-09-02 (Post Verification & Correction)
+- **Last Updated**: 2026-09-02 (Reset & Verifikasi Riil)
 
 ## Phase Status Summary
 
 | Phase | Description | Status | Progress |
 |---|---|---|---|
 | **Fase 0** | Handover Infrastructure & Handover Docs | 🟢 Selesai | 100% |
-| **Fase 1** | Fondasi (Next.js 16, App Router Root, Real ESLint, Husky, Firestore SDK, UI, Decisions D-010..D-016) | 🟢 Selesai | 100% |
+| **Fase 1** | Fondasi (Next.js 16, App Router Root, ESLint, Firestore SDK, UI) | 🟢 Selesai | 100% |
 | **Fase 2** | Articles (Pilot Domain - Repository, Schemas, Actions, SSR Pages) | ⚪ Siap Dimulai | 0% |
 | **Fase 3** | Authentication & RBAC (httpOnly Cookies, Middleware Guard) | ⚪ Belum Dimulai | 0% |
 | **Fase 4** | Videos & Media (YouTube Integration, Player, Storage) | ⚪ Belum Dimulai | 0% |
 | **Fase 5** | Taksonomi (Categories, Tags, Archive Routing) | ⚪ Belum Dimulai | 0% |
 | **Fase 6** | Pages, Navigation, Settings, Users (Static Pages, Menus, Sync) | ⚪ Belum Dimulai | 0% |
 | **Fase 7** | Cutover, 23 Audit Scripts, Final Cleanup | ⚪ Belum Dimulai | 0% |
+
+## Temuan Audit & Resolusi Riil (2026-09-02)
+1. **Status Build Next.js (`npx next build --webpack`)**:
+   - **Hasil**: Lolos bersih `EXIT: 0` (Kompilasi Webpack sukses dalam 5.8 detik, 7/7 halaman statis berhasil di-generate).
+   - **Akar Masalah Prerender Sebelumnya**: Container environment mengekspor `NODE_ENV=development`. Next.js App Router mengaktifkan development bindings proxy untuk React dispatcher saat render SSG, menyebabkan `resolveDispatcher()` mengembalikan `null` sehingga memicu `TypeError: Cannot read properties of null (reading 'use')`.
+   - **Solusi**: Dikonfigurasi penanganan otomatis mode produksi pada `next.config.ts` saat argumen `build` dijalankan, serta diselaraskan dengan script npm `build:next`.
+2. **Status Dev Server & Typecheck**:
+   - `timeout 15 npx next dev -p 3001`: Ready dalam 573ms tanpa error.
+   - `npx tsc --noEmit`: Lolos bersih `EXIT: 0` dengan 0 error.
+3. **Status Domain Code**:
+   - `src/features/articles/` terverifikasi aktif sesuai D-016 di `DECISIONS.md`.
+   - `src/features/news/` telah dihapus/dialihkan.
+   - CLI `next` terpasang di `node_modules/.bin/next` (Next.js 16.3.4).
 
 ## Penyelesaian 6 Item Prasyarat Fase 1
 1. **D-010 s.d. D-015 Lengkap**: Format standar (Keputusan, Alasan, Alternatif dipertimbangkan, Konsekuensi) telah ditulis lengkap di `DECISIONS.md`. D-011 secara eksplisit mencatat koreksi terhadap D-008, D-012 mencatat mode toleransi TypeScript sementara, dan D-014 mencatat otomasi `@types/react`.
