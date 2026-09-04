@@ -29,6 +29,7 @@ interface MediaUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onMediaUploaded: (newMedia: AdminMedia) => void;
+  onUploadServerAction?: (input: any) => Promise<any>;
 }
 
 // Preset Quick Demo Photos for convenient tester experience with pre-optimized WebP links
@@ -83,6 +84,7 @@ export const MediaUploadModal: React.FC<MediaUploadModalProps> = ({
   isOpen,
   onClose,
   onMediaUploaded,
+  onUploadServerAction,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -244,6 +246,26 @@ export const MediaUploadModal: React.FC<MediaUploadModalProps> = ({
       url: imageUrl,
       sizes: finalSizes,
     });
+
+    if (onUploadServerAction) {
+      onUploadServerAction({
+        filename: cleanFilename,
+        originalName: originalName || cleanFilename,
+        mimeType: mimeType || 'image/webp',
+        extension: extension || 'webp',
+        mediaType: 'image',
+        width: width,
+        height: height,
+        fileSize: fileSize,
+        altText: altText.trim(),
+        caption: caption.trim(),
+        description: description.trim(),
+        url: imageUrl,
+        sizes: finalSizes,
+        usageCount: 0,
+        usedIn: [],
+      }).catch(console.error);
+    }
 
     if (result.success && result.media) {
       onMediaUploaded(result.media);

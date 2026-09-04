@@ -156,6 +156,19 @@ export async function updateVideoAction(
       };
     }
 
+    // RBAC: Reporter TIDAK memiliki izin menerbitkan atau menjadwalkan video.
+    // Jika reporter memotong form via DevTools/API dengan values.status !== 'draft', tolak secara tegas!
+    if (staff.role === 'reporter' && values.status && values.status !== 'draft') {
+      return {
+        success: false,
+        message: 'Akses ditolak: Reporter tidak memiliki izin untuk menerbitkan atau menjadwalkan video. Naskah harus berstatus Draft.',
+      };
+    }
+
+    // Jika reporter mengedit, kunci status tetap draft kecuali sudah pernah disetujui (tetap tidak boleh mem-publish sendiri)
+    const effectiveStatus: VideoStatus =
+      staff.role === 'reporter' ? 'draft' : (values.status || existing.status);
+
     // Ekstrak youtube id jika url berubah
     const youtubeVideoId = values.youtubeUrl
       ? extractYouTubeId(values.youtubeUrl) || existing.youtubeVideoId
@@ -164,6 +177,7 @@ export async function updateVideoAction(
     const mergedData: AdminVideo = {
       ...existing,
       ...values,
+      status: effectiveStatus,
       youtubeVideoId: youtubeVideoId || existing.youtubeVideoId,
       updatedAt: new Date().toISOString(),
     };
@@ -279,6 +293,256 @@ export async function publishVideoAction(id: string): Promise<VideoActionResult>
     return {
       success: false,
       message: `Gagal menerbitkan video: ${err.message || String(err)}`,
+    };
+  }
+}
+
+/**
+ * Server Action: Tarik Video dari Publikasi (Unpublish -> Draft)
+ */
+export async function unpublishVideoAction(id: string): Promise<VideoActionResult> {
+  const staff = await verifyStaffSession();
+  if (!staff) {
+    return {
+      success: false,
+      message: 'Sesi login tidak valid. Harap login kembali.',
+    };
+  }
+
+  if (staff.role !== 'superadmin' && staff.role !== 'editor') {
+    return {
+      success: false,
+      message: 'Akses ditolak: Hanya Editor atau Superadmin yang berwenang membatalkan publikasi video.',
+    };
+  }
+
+  try {
+    const existing = await adminFirestoreVideoRepository.getVideoById(id);
+    if (!existing) {
+      return { success: false, message: `Video ${id} tidak ditemukan.` };
+    }
+
+    const updated = await adminFirestoreVideoRepository.saveVideo({
+      ...existing,
+      status: 'draft',
+      updatedAt: new Date().toISOString(),
+    });
+
+    revalidatePath('/video');
+    revalidatePath('/batutv-control/videos');
+    revalidatePath(`/video/${updated.slug}`);
+
+    return {
+      success: true,
+      message: `Video "${updated.title}" ditarik ke status Draft.`,
+      video: updated,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: `Gagal menarik video ke draft: ${err.message || String(err)}`,
+    };
+  }
+}
+
+/**
+ * Server Action: Pindahkan Video ke Sampah (Soft-Delete)
+ */
+export async function moveVideoToTrashAction(id: string): Promise<VideoActionResult> {
+  const staff = await verifyStaffSession();
+  if (!staff) {
+    return {
+      success: false,
+      message: 'Sesi login tidak valid. Harap login kembali.',
+    };
+  }
+
+  try {
+    const existing = await adminFirestoreVideoRepository.getVideoById(id);
+    if (!existing) {
+      return { success: false, message: `Video ${id} tidak ditemukan.` };
+    }
+
+    // Role check: Reporter hanya boleh memasukkan video miliknya sendiri ke sampah
+    if (staff.role === 'reporter' && existing.authorId && existing.authorId !== staff.uid) {
+      return {
+        success: false,
+        message: 'Akses ditolak: Reporter tidak dapat memindahkan video milik staf lain ke sampah.',
+      };
+    }
+
+    const updated = await adminFirestoreVideoRepository.saveVideo({
+      ...existing,
+      status: 'trash',
+      updatedAt: new Date().toISOString(),
+    });
+
+    revalidatePath('/video');
+    revalidatePath('/batutv-control/videos');
+    revalidatePath(`/video/${updated.slug}`);
+
+    return {
+      success: true,
+      message: `Video "${updated.title}" dipindahkan ke Sampah.`,
+      video: updated,
+    };
+  } catch (err: any) {
+    console.error('[moveVideoToTrashAction] Error:', err);
+    return {
+      success: false,
+      message: `Gagal memindahkan video ke sampah: ${err.message || String(err)}`,
+    };
+  }
+}
+
+/**
+ * Server Action: Pulihkan Video dari Sampah (Restore -> Draft)
+ */
+export async function restoreVideoFromTrashAction(id: string): Promise<VideoActionResult> {
+  const staff = await verifyStaffSession();
+  if (!staff) {
+    return {
+      success: false,
+      message: 'Sesi login tidak valid. Harap login kembali.',
+    };
+  }
+
+  try {
+    const existing = await adminFirestoreVideoRepository.getVideoById(id);
+    if (!existing) {
+      return { success: false, message: `Video ${id} tidak ditemukan.` };
+    }
+
+    // Role check: Reporter hanya boleh memulihkan video miliknya sendiri
+    if (staff.role === 'reporter' && existing.authorId && existing.authorId !== staff.uid) {
+      return {
+        success: false,
+        message: 'Akses ditolak: Reporter tidak dapat memulihkan video milik staf lain.',
+      };
+    }
+
+    const updated = await adminFirestoreVideoRepository.saveVideo({
+      ...existing,
+      status: 'draft',
+      updatedAt: new Date().toISOString(),
+    });
+
+    revalidatePath('/video');
+    revalidatePath('/batutv-control/videos');
+    revalidatePath(`/video/${updated.slug}`);
+
+    return {
+      success: true,
+      message: `Video "${updated.title}" dipulihkan ke status Draft.`,
+      video: updated,
+    };
+  } catch (err: any) {
+    console.error('[restoreVideoFromTrashAction] Error:', err);
+    return {
+      success: false,
+      message: `Gagal memulihkan video: ${err.message || String(err)}`,
+    };
+  }
+}
+
+/**
+ * Server Action: Hapus Video Permanen (Hard-Delete)
+ */
+export async function deleteVideoPermanentlyAction(id: string): Promise<VideoActionResult> {
+  const staff = await verifyStaffSession();
+  if (!staff) {
+    return {
+      success: false,
+      message: 'Sesi login tidak valid. Harap login kembali.',
+    };
+  }
+
+  // Hanya Superadmin dan Editor yang boleh menghapus video secara permanen
+  if (staff.role !== 'superadmin' && staff.role !== 'editor') {
+    return {
+      success: false,
+      message: 'Akses ditolak: Hanya Editor atau Superadmin yang berwenang menghapus permanen video.',
+    };
+  }
+
+  try {
+    const existing = await adminFirestoreVideoRepository.getVideoById(id);
+    await adminFirestoreVideoRepository.deleteVideo(id);
+
+    revalidatePath('/video');
+    revalidatePath('/batutv-control/videos');
+    if (existing) {
+      revalidatePath(`/video/${existing.slug}`);
+    }
+
+    return {
+      success: true,
+      message: `Video ${id} berhasil dihapus permanen.`,
+    };
+  } catch (err: any) {
+    console.error('[deleteVideoPermanentlyAction] Error:', err);
+    return {
+      success: false,
+      message: `Gagal menghapus video permanen: ${err.message || String(err)}`,
+    };
+  }
+}
+
+/**
+ * Server Action: Ambil Data Seluruh Video untuk Panel Admin (dengan Penegakan RBAC)
+ */
+export async function getAdminVideosAction(options?: {
+  status?: VideoStatus;
+  category?: string;
+  search?: string;
+}): Promise<{
+  success: boolean;
+  message?: string;
+  videos: AdminVideo[];
+  currentUser: { uid: string; email: string; role: string } | null;
+}> {
+  const staff = await verifyStaffSession();
+  if (!staff) {
+    return {
+      success: false,
+      message: 'Sesi login tidak valid.',
+      videos: [],
+      currentUser: null,
+    };
+  }
+
+  try {
+    let allVideos = await adminFirestoreVideoRepository.getVideos({
+      status: options?.status,
+      categorySlug: options?.category,
+    });
+
+    if (options?.search) {
+      const q = options.search.toLowerCase();
+      allVideos = allVideos.filter(
+        (v) => v.title.toLowerCase().includes(q) || (v.excerpt && v.excerpt.toLowerCase().includes(q))
+      );
+    }
+
+    // RBAC: Reporter HANYA boleh melihat video yang ia buat sendiri (authorId === staff.uid)
+    if (staff.role === 'reporter') {
+      allVideos = allVideos.filter(
+        (v) => !v.authorId || v.authorId === staff.uid || v.author === staff.email
+      );
+    }
+
+    return {
+      success: true,
+      videos: allVideos,
+      currentUser: staff,
+    };
+  } catch (err: any) {
+    console.error('[getAdminVideosAction] Error:', err);
+    return {
+      success: false,
+      message: `Gagal memuat video: ${err.message || String(err)}`,
+      videos: [],
+      currentUser: staff,
     };
   }
 }

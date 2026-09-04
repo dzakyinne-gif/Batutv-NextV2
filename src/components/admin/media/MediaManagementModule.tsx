@@ -11,7 +11,7 @@ import {
   RefreshCw,
   Plus,
 } from 'lucide-react';
-import { AdminMedia } from '../../../types/admin';
+import { AdminMedia, AdminUser } from '../../../types/admin';
 import {
   getStoredMedia,
   getMediaCounts,
@@ -23,14 +23,29 @@ import { MediaDetailModal } from './MediaDetailModal';
 import { MediaUploadModal } from './MediaUploadModal';
 import { MediaDeleteModal } from './MediaDeleteModal';
 
+export interface MediaActions {
+  deleteMedia?: (id: string) => Promise<{ success: boolean; message: string }>;
+  updateMetadata?: (id: string, metadata: any) => Promise<{ success: boolean; message: string; media?: any }>;
+  uploadMedia?: (input: any) => Promise<{ success: boolean; message: string; media?: any }>;
+}
+
 interface MediaManagementModuleProps {
   onNavigateToPublic?: (path: string) => void;
+  currentUser?: AdminUser | null;
+  initialMedia?: AdminMedia[];
+  actions?: MediaActions;
 }
 
 export const MediaManagementModule: React.FC<MediaManagementModuleProps> = ({
   onNavigateToPublic,
+  currentUser,
+  initialMedia,
+  actions,
 }) => {
-  const [mediaList, setMediaList] = useState<AdminMedia[]>([]);
+  const [mediaList, setMediaList] = useState<AdminMedia[]>(() => {
+    if (initialMedia && initialMedia.length > 0) return initialMedia;
+    return getStoredMedia();
+  });
   const [selectedMediaForDetail, setSelectedMediaForDetail] = useState<AdminMedia | null>(null);
   const [selectedMediaForDelete, setSelectedMediaForDelete] = useState<AdminMedia | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -55,8 +70,12 @@ export const MediaManagementModule: React.FC<MediaManagementModuleProps> = ({
   };
 
   useEffect(() => {
-    refreshMedia();
-  }, []);
+    if (initialMedia && initialMedia.length > 0) {
+      setMediaList(initialMedia);
+    } else {
+      refreshMedia();
+    }
+  }, [initialMedia]);
 
   const counts = getMediaCounts();
 
@@ -69,6 +88,13 @@ export const MediaManagementModule: React.FC<MediaManagementModuleProps> = ({
   const handleMediaUpdated = (updatedMedia: AdminMedia) => {
     refreshMedia();
     setSelectedMediaForDetail(updatedMedia);
+    if (actions?.updateMetadata) {
+      actions.updateMetadata(updatedMedia.id, {
+        altText: updatedMedia.altText,
+        caption: updatedMedia.caption,
+        description: updatedMedia.description,
+      }).catch(console.error);
+    }
     showToast(`Metadata "${updatedMedia.filename}" berhasil diperbarui!`, 'success');
   };
 
@@ -76,6 +102,9 @@ export const MediaManagementModule: React.FC<MediaManagementModuleProps> = ({
     const res = deleteMedia(id);
     if (res.success) {
       refreshMedia();
+      if (actions?.deleteMedia) {
+        actions.deleteMedia(id).catch(console.error);
+      }
       setSelectedMediaForDelete(null);
       setSelectedMediaForDetail(null);
       showToast(res.message, 'success');
@@ -231,6 +260,7 @@ export const MediaManagementModule: React.FC<MediaManagementModuleProps> = ({
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
         onMediaUploaded={handleMediaUploaded}
+        onUploadServerAction={actions?.uploadMedia}
       />
 
       {/* Delete Modal with Guard Protection */}

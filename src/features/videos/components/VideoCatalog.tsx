@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, Video, Tv } from 'lucide-react';
+import { Search, Video, Tv } from 'lucide-react';
 import Link from 'next/link';
 import { PublicVideoItem } from '../types';
 import { VideoCard } from './VideoCard';

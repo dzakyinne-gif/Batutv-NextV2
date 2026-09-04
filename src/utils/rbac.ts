@@ -103,16 +103,16 @@ export const checkRoutePermission = (
   }
 
   // 3. Video Module
-  if (path.startsWith('/batutv-control/video')) {
-    if (role === 'admin' || role === 'redaksi' || role === 'editor') {
+  if (path.startsWith('/batutv-control/videos') || path.startsWith('/batutv-control/video')) {
+    if (role === 'admin' || role === 'redaksi' || role === 'editor' || role === 'reporter' || role === 'kontributor') {
       return { allowed: true, role, moduleName: 'Manajemen Video' };
     }
     return {
       allowed: false,
       role,
-      requiredRoleName: 'Administrator, Redaksi, atau Editor',
+      requiredRoleName: 'Staff Redaksi / Reporter',
       moduleName: 'Manajemen Video',
-      reason: 'Pengelolaan video YouTube dibatasi khusus untuk tim Redaksi dan Editor.',
+      reason: 'Pengelolaan video dibatasi khusus untuk staff yang memiliki izin konten.',
     };
   }
 

@@ -117,13 +117,18 @@ export interface AdminTag {
   updatedAt: string;
 }
 
+export type AdminRole = 'superadmin' | 'admin' | 'editor' | 'redaksi' | 'reporter' | 'kontributor';
+
 export interface AdminUser {
+  id?: string;
   name: string;
   email: string;
   role: string;
   avatarUrl?: string;
   authorId?: string;
   username?: string;
+  status?: string;
+  createdAt?: string;
 }
 
 export interface AdminArticle {

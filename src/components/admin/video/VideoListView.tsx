@@ -124,6 +124,15 @@ export const VideoListView: React.FC<VideoListViewProps> = ({
         return false;
       }
 
+      // RBAC Filter: Reporter hanya dapat melihat video buatannya sendiri
+      if (userRole === 'reporter' && currentUser) {
+        const isOwn =
+          vid.authorId === currentUser.id ||
+          vid.author === currentUser.name ||
+          vid.author === currentUser.email;
+        if (!isOwn) return false;
+      }
+
       // Date filter
       if (dateFilter !== 'all') {
         const vidDate = new Date(vid.publishedAt).getTime();

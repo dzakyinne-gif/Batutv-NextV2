@@ -30,17 +30,17 @@
 - [ ] Tests: Unit test repository & e2e flow
 
 ### Fase 3 — Authentication & RBAC
-- [ ] Port auth logic to httpOnly session cookie with Firebase Admin verification
-- [ ] Route Handler: `app/api/auth/session/route.ts` & `app/api/auth/logout/route.ts`
-- [ ] Middleware route guard in `middleware.ts` for `/batutv-control/*`
-- [ ] Login page: `app/(auth)/login/page.tsx`
-- [ ] Auth session hooks & provider
+- [x] Port auth logic to httpOnly session cookie with Firebase Admin verification
+- [x] Route Handler: `app/api/auth/session/route.ts` & `app/api/auth/logout/route.ts`
+- [x] Middleware route guard in `middleware.ts` for `/batutv-control/*`
+- [x] Login page: `app/(auth)/login/page.tsx`
+- [x] Auth session hooks & provider
 
 ### Fase 4 — Videos & Media Library
-- [ ] Port `IVideoRepository` & `IMediaRepository` to `features/videos/` and `features/media/`
-- [ ] Video schemas, server actions, YouTube parser & thumbnail utilities
-- [ ] Public Video page & player modal: `app/(portal)/video/`
-- [ ] Admin Video & Media management: `app/(dashboard)/batutv-control/videos/` and `media/`
+- [x] Port `IVideoRepository` & `IMediaRepository` to `features/videos/` and `features/media/`
+- [x] Video schemas, server actions, YouTube parser & thumbnail utilities
+- [x] Public Video page & player modal: `app/(portal)/video/`
+- [x] Admin Video & Media management: `app/(dashboard)/batutv-control/videos/` and `media/`
 
 ### Fase 5 — Taxonomy (Categories & Tags)
 - [ ] Port `ICategoryRepository` & `ITagRepository`

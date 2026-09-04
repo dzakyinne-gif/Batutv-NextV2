@@ -11,7 +11,7 @@ export interface VideoQueryOptions {
 export interface IVideoRepository {
   getVideos(options?: VideoQueryOptions): Promise<AdminVideo[]>;
   getVideoById(id: string): Promise<AdminVideo | null>;
-  getVideoBySlug(slug: string): Promise<AdminVideo | null>;
+  getVideoBySlug(slug: string, status?: VideoStatus): Promise<AdminVideo | null>;
   saveVideo(video: AdminVideo): Promise<AdminVideo>;
   updateVideo(id: string, updates: Partial<AdminVideo>): Promise<AdminVideo>;
   deleteVideo(id: string): Promise<void>;

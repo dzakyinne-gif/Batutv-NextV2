@@ -133,8 +133,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isNewsActive = currentPath.startsWith('/batutv-control/berita');
   const [isNewsExpanded, setIsNewsExpanded] = useState<boolean>(true);
 
-  // Keep video submenu open when within /batutv-control/video
-  const isVideoActive = currentPath.startsWith('/batutv-control/video');
+  // Keep video submenu open when within /batutv-control/videos
+  const isVideoActive = currentPath.startsWith('/batutv-control/videos');
   const [isVideoExpanded, setIsVideoExpanded] = useState<boolean>(true);
 
   useEffect(() => {
@@ -282,50 +282,85 @@ export const Sidebar: React.FC<SidebarProps> = ({
       },
     ];
 
-    // Videos are accessible to Admin, Redaksi, and Editor only
-    if (roleKey === 'admin' || roleKey === 'redaksi' || roleKey === 'editor') {
+    // Videos are accessible to Admin, Redaksi, Editor, and Reporter/Kontributor
+    if (roleKey === 'kontributor' || roleKey === 'reporter') {
+      kontenItems.push({
+        name: 'Video Saya',
+        path: '/batutv-control/videos',
+        icon: Video,
+        badge: videoCounts.all.toString(),
+        isReady: true,
+        subItems: [
+          {
+            name: 'Semua Video Saya',
+            path: '/batutv-control/videos',
+            icon: List,
+            badge: videoCounts.all,
+          },
+          {
+            name: 'Tambah Video',
+            path: '/batutv-control/videos/tambah',
+            icon: FilePlus,
+          },
+          {
+            name: 'Draft',
+            path: '/batutv-control/videos/draft',
+            icon: FileText,
+            badge: videoCounts.draft > 0 ? videoCounts.draft : undefined,
+            badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+          },
+          {
+            name: 'Sampah',
+            path: '/batutv-control/videos/sampah',
+            icon: Trash2,
+            badge: videoCounts.trash > 0 ? videoCounts.trash : undefined,
+            badgeColor: 'bg-red-500/20 text-red-300 border-red-500/30',
+          },
+        ],
+      });
+    } else if (roleKey === 'admin' || roleKey === 'redaksi' || roleKey === 'editor' || roleKey === 'superadmin') {
       kontenItems.push({
         name: 'Video',
-        path: '/batutv-control/video',
+        path: '/batutv-control/videos',
         icon: Video,
         badge: videoCounts.all.toString(),
         isReady: true,
         subItems: [
           {
             name: 'Semua Video',
-            path: '/batutv-control/video',
+            path: '/batutv-control/videos',
             icon: List,
             badge: videoCounts.all,
           },
           {
             name: 'Tambah Video',
-            path: '/batutv-control/video/tambah',
+            path: '/batutv-control/videos/tambah',
             icon: FilePlus,
           },
           {
             name: 'Draft',
-            path: '/batutv-control/video/draft',
+            path: '/batutv-control/videos/draft',
             icon: FileText,
             badge: videoCounts.draft > 0 ? videoCounts.draft : undefined,
             badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
           },
           {
             name: 'Terjadwal',
-            path: '/batutv-control/video/terjadwal',
+            path: '/batutv-control/videos/terjadwal',
             icon: Clock,
             badge: videoCounts.scheduled > 0 ? videoCounts.scheduled : undefined,
             badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
           },
           {
             name: 'Terbit',
-            path: '/batutv-control/video/terbit',
+            path: '/batutv-control/videos/terbit',
             icon: CheckCircle2,
             badge: videoCounts.published > 0 ? videoCounts.published : undefined,
             badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
           },
           {
             name: 'Sampah',
-            path: '/batutv-control/video/sampah',
+            path: '/batutv-control/videos/sampah',
             icon: Trash2,
             badge: videoCounts.trash > 0 ? videoCounts.trash : undefined,
             badgeColor: 'bg-red-500/20 text-red-300 border-red-500/30',
@@ -480,11 +515,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         currentPath.startsWith('/batutv-control/berita/edit')
       );
     }
-    if (subPath === '/batutv-control/video') {
+    if (subPath === '/batutv-control/videos') {
       return (
-        currentPath === '/batutv-control/video' ||
-        currentPath === '/batutv-control/video/semua' ||
-        currentPath.startsWith('/batutv-control/video/edit')
+        currentPath === '/batutv-control/videos' ||
+        currentPath === '/batutv-control/videos/semua' ||
+        currentPath.startsWith('/batutv-control/videos/edit')
       );
     }
     return currentPath === subPath;
@@ -569,12 +604,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 const Icon = item.icon;
                 const hasSubItems = Boolean(item.subItems && item.subItems.length > 0);
                 const isNewsItem = item.path === '/batutv-control/berita';
-                const isVideoItem = item.path === '/batutv-control/video';
+                const isVideoItem = item.path === '/batutv-control/videos';
                 const isExpanded = isNewsItem ? isNewsExpanded : isVideoItem ? isVideoExpanded : false;
                 const isParentActive =
                   currentPath === item.path ||
                   (isNewsItem && currentPath.startsWith('/batutv-control/berita')) ||
-                  (isVideoItem && currentPath.startsWith('/batutv-control/video'));
+                  (isVideoItem && currentPath.startsWith('/batutv-control/videos'));
 
                 const toggleExpand = (e: React.MouseEvent) => {
                   e.stopPropagation();

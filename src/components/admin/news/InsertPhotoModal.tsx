@@ -23,7 +23,6 @@ import {
   MAX_UPLOAD_SIZE_BYTES,
   OptimizedImagePackage,
 } from '../../../utils/imageOptimizer';
-
 export interface InsertImagePayload {
   url: string;
   alt: string;
@@ -35,6 +34,7 @@ interface InsertPhotoModalProps {
   isOpen: boolean;
   onClose: () => void;
   onInsert: (payload: InsertImagePayload) => void;
+  onUploadServerAction?: (input: any) => Promise<any>;
 }
 
 type ActiveTab = 'upload' | 'media-library' | 'external-url';
@@ -43,6 +43,7 @@ export const InsertPhotoModal: React.FC<InsertPhotoModalProps> = ({
   isOpen,
   onClose,
   onInsert,
+  onUploadServerAction,
 }) => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('upload');
   
@@ -165,6 +166,26 @@ export const InsertPhotoModal: React.FC<InsertPhotoModalProps> = ({
 
       if (createResult.success && createResult.media) {
         setUploadedMediaRecord(createResult.media);
+        if (onUploadServerAction) {
+          onUploadServerAction({
+            filename: cleanFilename,
+            originalName: optimized.originalName || cleanFilename,
+            mimeType: optimized.mimeType || 'image/webp',
+            extension: optimized.extension || 'webp',
+            mediaType: 'image',
+            width: optimized.width,
+            height: optimized.height,
+            fileSize: optimized.fileSize,
+            altText: defaultAlt,
+            caption: defaultCaption,
+            description: 'Diunggah melalui Naskah Editor Berita',
+            url: optimized.sizes.large || optimized.sizes.original,
+            sizes: optimized.sizes,
+            usageCount: 0,
+            usedIn: [],
+          }).catch(console.error);
+        }
+
         // Refresh local media list
         setMediaList(getStoredMedia().filter((m) => m.mediaType === 'image'));
       }

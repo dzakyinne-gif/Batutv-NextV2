@@ -15,25 +15,42 @@ import { VideoListView } from './VideoListView';
 import { VideoEditorView } from './VideoEditorView';
 import { VideoToast, VideoToastMessage } from './VideoToast';
 
+export interface VideoActions {
+  createVideo?: (input: any) => Promise<{ success: boolean; message: string; video?: any }>;
+  updateVideo?: (id: string, input: any) => Promise<{ success: boolean; message: string; video?: any }>;
+  publishVideo?: (id: string) => Promise<{ success: boolean; message: string }>;
+  unpublishVideo?: (id: string) => Promise<{ success: boolean; message: string }>;
+  moveToTrash?: (id: string) => Promise<{ success: boolean; message: string }>;
+  restoreFromTrash?: (id: string) => Promise<{ success: boolean; message: string }>;
+  deletePermanently?: (id: string) => Promise<{ success: boolean; message: string }>;
+}
+
 interface VideoManagementModuleProps {
   currentPath?: string;
   onNavigate?: (path: string) => void;
   onNavigateToPublic?: (slug: string) => void;
   currentUser?: AdminUser | null;
+  initialVideos?: AdminVideo[];
+  actions?: VideoActions;
 }
 
 export const VideoManagementModule: React.FC<VideoManagementModuleProps> = ({
-  currentPath = '/batutv-control/video',
+  currentPath = '/batutv-control/videos',
   onNavigate,
   onNavigateToPublic,
   currentUser,
+  initialVideos,
+  actions,
 }) => {
   // Navigation & View State
   const [currentView, setCurrentView] = useState<'list' | 'create' | 'edit'>('list');
   const [editingVideo, setEditingVideo] = useState<AdminVideo | null>(null);
 
-  // Videos List State
-  const [videos, setVideos] = useState<AdminVideo[]>(() => getStoredVideos());
+  // Videos List State - prioritize initialVideos if provided
+  const [videos, setVideos] = useState<AdminVideo[]>(() => {
+    if (initialVideos && initialVideos.length > 0) return initialVideos;
+    return getStoredVideos();
+  });
 
   // Toasts State
   const [toasts, setToasts] = useState<VideoToastMessage[]>([]);
@@ -45,12 +62,20 @@ export const VideoManagementModule: React.FC<VideoManagementModuleProps> = ({
   }, []);
 
   useEffect(() => {
-    refreshVideos();
-  }, [currentPath, refreshVideos]);
+    if (initialVideos && initialVideos.length > 0) {
+      setVideos(initialVideos);
+    } else {
+      refreshVideos();
+    }
+  }, [currentPath, initialVideos, refreshVideos]);
 
   // Routing detection based on currentPath
-  const isTambahRoute = currentPath === '/batutv-control/video/tambah';
-  const isEditRoute = currentPath.startsWith('/batutv-control/video/edit');
+  const isTambahRoute =
+    currentPath === '/batutv-control/video/tambah' ||
+    currentPath === '/batutv-control/videos/tambah';
+  const isEditRoute =
+    currentPath.startsWith('/batutv-control/video/edit') ||
+    currentPath.startsWith('/batutv-control/videos/edit');
 
   useEffect(() => {
     if (isEditRoute) {
@@ -81,13 +106,15 @@ export const VideoManagementModule: React.FC<VideoManagementModuleProps> = ({
     return 'all';
   })();
 
+  const basePath = '/batutv-control/videos';
+
   const handleTabChange = (tab: 'all' | 'draft' | 'scheduled' | 'published' | 'trash') => {
     if (onNavigate) {
-      if (tab === 'all') onNavigate('/batutv-control/video');
-      else if (tab === 'draft') onNavigate('/batutv-control/video/draft');
-      else if (tab === 'scheduled') onNavigate('/batutv-control/video/terjadwal');
-      else if (tab === 'published') onNavigate('/batutv-control/video/terbit');
-      else if (tab === 'trash') onNavigate('/batutv-control/video/sampah');
+      if (tab === 'all') onNavigate(basePath);
+      else if (tab === 'draft') onNavigate(`${basePath}/draft`);
+      else if (tab === 'scheduled') onNavigate(`${basePath}/terjadwal`);
+      else if (tab === 'published') onNavigate(`${basePath}/terbit`);
+      else if (tab === 'trash') onNavigate(`${basePath}/sampah`);
     }
   };
 
@@ -117,20 +144,34 @@ export const VideoManagementModule: React.FC<VideoManagementModuleProps> = ({
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
+  // RBAC filter for Tab Counts
+  const visibleVideos = React.useMemo(() => {
+    if (currentUser?.role === 'reporter') {
+      return videos.filter(
+        (v) =>
+          !v.authorId ||
+          v.authorId === currentUser.id ||
+          v.author === currentUser.name ||
+          v.author === currentUser.email
+      );
+    }
+    return videos;
+  }, [videos, currentUser]);
+
   // Counts for Tabs & Badges
   const counts = {
-    all: videos.filter((v) => v.status !== 'trash').length,
-    draft: videos.filter((v) => v.status === 'draft').length,
-    scheduled: videos.filter((v) => v.status === 'scheduled').length,
-    published: videos.filter((v) => v.status === 'published').length,
-    trash: videos.filter((v) => v.status === 'trash').length,
+    all: visibleVideos.filter((v) => v.status !== 'trash').length,
+    draft: visibleVideos.filter((v) => v.status === 'draft').length,
+    scheduled: visibleVideos.filter((v) => v.status === 'scheduled').length,
+    published: visibleVideos.filter((v) => v.status === 'published').length,
+    trash: visibleVideos.filter((v) => v.status === 'trash').length,
   };
 
   // Handlers
   const handleNewVideo = () => {
     setEditingVideo(null);
     if (onNavigate) {
-      onNavigate('/batutv-control/video/tambah');
+      onNavigate(`${basePath}/tambah`);
     } else {
       setCurrentView('create');
     }
@@ -139,7 +180,7 @@ export const VideoManagementModule: React.FC<VideoManagementModuleProps> = ({
   const handleEditVideo = (video: AdminVideo) => {
     setEditingVideo(video);
     if (onNavigate) {
-      onNavigate(`/batutv-control/video/edit/${video.id}`);
+      onNavigate(`${basePath}/edit/${video.id}`);
     } else {
       setCurrentView('edit');
     }
@@ -148,13 +189,13 @@ export const VideoManagementModule: React.FC<VideoManagementModuleProps> = ({
   const handleCancelEditor = () => {
     setEditingVideo(null);
     if (onNavigate) {
-      onNavigate('/batutv-control/video');
+      onNavigate(basePath);
     } else {
       setCurrentView('list');
     }
   };
 
-  const handleSaveVideo = (savedVideo: AdminVideo) => {
+  const handleSaveVideo = async (savedVideo: AdminVideo) => {
     const userRole = currentUser?.role;
     const canPublish = canRolePublish(userRole);
 
@@ -171,13 +212,28 @@ export const VideoManagementModule: React.FC<VideoManagementModuleProps> = ({
     const videoToSave = {
       ...savedVideo,
       status: normalizedStatus,
+      authorId: savedVideo.authorId || currentUser?.id || 'usr-staff',
+      author: savedVideo.author || currentUser?.name || 'Staf BatuTV',
     };
 
+    const isNew = !editingVideo;
+
+    // Optimistic cache update
     const updated = persistVideo(videoToSave, userRole);
     setVideos(updated);
     setEditingVideo(null);
 
-    const isNew = !editingVideo;
+    // Call Server Action asynchronously if provided
+    try {
+      if (isNew && actions?.createVideo) {
+        await actions.createVideo(videoToSave as any);
+      } else if (!isNew && actions?.updateVideo) {
+        await actions.updateVideo(videoToSave.id, videoToSave as any);
+      }
+    } catch (err) {
+      console.warn('[handleSaveVideo] Server Action sync note:', err);
+    }
+
     const statusText =
       videoToSave.status === 'published'
         ? 'Diterbitkan'
@@ -194,10 +250,10 @@ export const VideoManagementModule: React.FC<VideoManagementModuleProps> = ({
     }
 
     if (onNavigate) {
-      if (videoToSave.status === 'published') onNavigate('/batutv-control/video/terbit');
-      else if (videoToSave.status === 'scheduled') onNavigate('/batutv-control/video/terjadwal');
-      else if (videoToSave.status === 'draft') onNavigate('/batutv-control/video/draft');
-      else onNavigate('/batutv-control/video');
+      if (videoToSave.status === 'published') onNavigate(`${basePath}/terbit`);
+      else if (videoToSave.status === 'scheduled') onNavigate(`${basePath}/terjadwal`);
+      else if (videoToSave.status === 'draft') onNavigate(`${basePath}/draft`);
+      else onNavigate(basePath);
     } else {
       setCurrentView('list');
     }
@@ -206,6 +262,15 @@ export const VideoManagementModule: React.FC<VideoManagementModuleProps> = ({
   const handleTrashVideo = (id: string) => {
     const target = videos.find((v) => v.id === id);
     const userRole = currentUser?.role;
+
+    if (userRole === 'reporter' && target?.authorId && target.authorId !== currentUser?.id) {
+      addToast(
+        'error',
+        'Aksi Tidak Diizinkan',
+        'Reporter hanya dapat memindahkan video buatannya sendiri ke sampah.'
+      );
+      return;
+    }
 
     if (target && target.status === 'published' && !canRoleTrashPublished(userRole)) {
       addToast(
@@ -218,6 +283,7 @@ export const VideoManagementModule: React.FC<VideoManagementModuleProps> = ({
 
     const updated = moveVideoToTrash(id, userRole);
     setVideos(updated);
+    if (actions?.moveToTrash) actions.moveToTrash(id).catch(console.error);
 
     addToast(
       'trash',
@@ -226,6 +292,7 @@ export const VideoManagementModule: React.FC<VideoManagementModuleProps> = ({
       () => {
         const restored = restoreVideoFromTrash(id);
         setVideos(restored);
+        if (actions?.restoreFromTrash) actions.restoreFromTrash(id).catch(console.error);
         addToast('success', 'Video Dipulihkan', 'Video dikembalikan ke status Draft.');
       }
     );
@@ -234,6 +301,7 @@ export const VideoManagementModule: React.FC<VideoManagementModuleProps> = ({
   const handleRestoreVideo = (id: string) => {
     const updated = restoreVideoFromTrash(id);
     setVideos(updated);
+    if (actions?.restoreFromTrash) actions.restoreFromTrash(id).catch(console.error);
     addToast('success', 'Video Dipulihkan', 'Video dikembalikan ke tab Draft.');
   };
 
@@ -250,6 +318,7 @@ export const VideoManagementModule: React.FC<VideoManagementModuleProps> = ({
 
     const updated = deleteVideoPermanently(id, userRole);
     setVideos(updated);
+    if (actions?.deletePermanently) actions.deletePermanently(id).catch(console.error);
     addToast('info', 'Video Dihapus Permanen', 'Video telah dihapus dari sistem.');
   };
 
@@ -278,6 +347,13 @@ export const VideoManagementModule: React.FC<VideoManagementModuleProps> = ({
 
     const updated = bulkUpdateVideoStatus([id], newStatus, userRole);
     setVideos(updated);
+
+    if (newStatus === 'published' && actions?.publishVideo) {
+      actions.publishVideo(id).catch(console.error);
+    } else if (newStatus === 'draft' && actions?.unpublishVideo) {
+      actions.unpublishVideo(id).catch(console.error);
+    }
+
     addToast(
       'success',
       'Status Video Diperbarui',

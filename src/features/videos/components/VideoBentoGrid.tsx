@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Tv, Play, Eye, Clock, Sparkles } from 'lucide-react';
 import { PublicVideoItem } from '../types';
 import { VideoPlayer } from './VideoPlayer';
-import { VideoCard } from './VideoCard';
 
 interface VideoBentoGridProps {
   videos: PublicVideoItem[];
