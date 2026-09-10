@@ -37,7 +37,13 @@ import { getPagesCount } from '../../data/pagesAdminStore';
 import { getNavigationCounts } from '../../data/navigationStore';
 import { getStoredUsers, USER_UPDATED_EVENT } from '../../data/userAdminStore';
 import { AdminUser } from '../../types/admin';
-import { normalizeUserRole } from '../../utils/rbac';
+import {
+  normalizeUserRole,
+  isSuperAdminRole,
+  isEditorRole,
+  isEditorOrHigherRole,
+  isReporterRole,
+} from '../../utils/rbac';
 
 interface SidebarProps {
   currentPath: string;
@@ -79,6 +85,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
 }) => {
   const roleKey = normalizeUserRole(user?.role);
+  const isSuperAdmin = isSuperAdminRole(user?.role);
+  const isEditor = isEditorRole(user?.role);
+  const isEditorOrHigher = isEditorOrHigherRole(user?.role);
+  const isReporter = isReporterRole(user?.role);
 
   // Live counts for news, video, category, media, tag, and author badge indicators
   const [counts, setCounts] = useState(() => getArticlesCounts());
@@ -134,7 +144,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isNewsExpanded, setIsNewsExpanded] = useState<boolean>(true);
 
   // Keep video submenu open when within /batutv-control/videos
-  const isVideoActive = currentPath.startsWith('/batutv-control/videos');
+  const isVideoActive =
+    currentPath.startsWith('/batutv-control/videos') ||
+    currentPath.startsWith('/batutv-control/video');
   const [isVideoExpanded, setIsVideoExpanded] = useState<boolean>(true);
 
   useEffect(() => {
@@ -151,30 +163,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   // Dynamic news sub-items per role
   const newsSubItems: SubMenuItem[] = (() => {
-    if (roleKey === 'kontributor') {
-      return [
-        {
-          name: 'Tulis Naskah Baru',
-          path: '/batutv-control/berita/tulis',
-          icon: FilePlus,
-        },
-        {
-          name: 'Draft Naskah Saya',
-          path: '/batutv-control/berita/draft',
-          icon: FileText,
-          badge: counts.draft > 0 ? counts.draft : undefined,
-          badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-        },
-        {
-          name: 'Semua Naskah',
-          path: '/batutv-control/berita',
-          icon: List,
-          badge: counts.all,
-        },
-      ];
-    }
-
-    if (roleKey === 'reporter') {
+    if (isReporter) {
       return [
         {
           name: 'Semua Berita',
@@ -204,7 +193,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ];
     }
 
-    // Admin, Redaksi, Editor
+    // Super Admin & Editor (Full editorial capabilities)
     return [
       {
         name: 'Semua Berita',
@@ -273,7 +262,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     // 1. KONTEN SECTION
     const kontenItems: MenuItem[] = [
       {
-        name: roleKey === 'kontributor' ? 'Naskah Tulisan' : 'Berita',
+        name: isReporter ? 'Naskah Berita' : 'Berita',
         path: '/batutv-control/berita',
         icon: Newspaper,
         badge: counts.all.toString(),
@@ -282,43 +271,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       },
     ];
 
-    // Videos are accessible to Admin, Redaksi, Editor, and Reporter/Kontributor
-    if (roleKey === 'kontributor' || roleKey === 'reporter') {
-      kontenItems.push({
-        name: 'Video Saya',
-        path: '/batutv-control/videos',
-        icon: Video,
-        badge: videoCounts.all.toString(),
-        isReady: true,
-        subItems: [
-          {
-            name: 'Semua Video Saya',
-            path: '/batutv-control/videos',
-            icon: List,
-            badge: videoCounts.all,
-          },
-          {
-            name: 'Tambah Video',
-            path: '/batutv-control/videos/tambah',
-            icon: FilePlus,
-          },
-          {
-            name: 'Draft',
-            path: '/batutv-control/videos/draft',
-            icon: FileText,
-            badge: videoCounts.draft > 0 ? videoCounts.draft : undefined,
-            badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-          },
-          {
-            name: 'Sampah',
-            path: '/batutv-control/videos/sampah',
-            icon: Trash2,
-            badge: videoCounts.trash > 0 ? videoCounts.trash : undefined,
-            badgeColor: 'bg-red-500/20 text-red-300 border-red-500/30',
-          },
-        ],
-      });
-    } else if (roleKey === 'admin' || roleKey === 'redaksi' || roleKey === 'editor' || roleKey === 'superadmin') {
+    // Videos are accessible to Super Admin & Editor
+    if (isEditorOrHigher) {
       kontenItems.push({
         name: 'Video',
         path: '/batutv-control/videos',
@@ -377,10 +331,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     // 2. KONTEN PENDUKUNG SECTION
     const pendukungItems: MenuItem[] = [];
 
-    if (roleKey === 'admin' || roleKey === 'redaksi' || roleKey === 'editor') {
+    if (isEditorOrHigher) {
       pendukungItems.push({
         name: 'Kategori',
-        path: '/batutv-control/kategori',
+        path: '/batutv-control/categories',
         icon: Tags,
         badge: categoryCount.toString(),
         isReady: true,
@@ -388,17 +342,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
 
     pendukungItems.push({
-      name: roleKey === 'kontributor' ? 'Media Saya' : 'Media',
+      name: isReporter ? 'Media Saya' : 'Media',
       path: '/batutv-control/media',
       icon: FolderOpen,
       badge: mediaCount.toString(),
       isReady: true,
     });
 
-    if (roleKey === 'admin' || roleKey === 'redaksi' || roleKey === 'editor') {
+    if (isEditorOrHigher) {
       pendukungItems.push({
         name: 'Tag',
-        path: '/batutv-control/tag',
+        path: '/batutv-control/tags',
         icon: Hash,
         badge: tagCount.toString(),
         isReady: true,
@@ -415,8 +369,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     // 3. MASTER DATA SECTION
     const masterItems: MenuItem[] = [];
 
-    // Penulis is visible to Admin, Redaksi, and Editor
-    if (roleKey === 'admin' || roleKey === 'redaksi' || roleKey === 'editor') {
+    // Penulis is visible to Super Admin and Editor
+    if (isEditorOrHigher) {
       masterItems.push({
         name: 'Penulis',
         path: '/batutv-control/penulis',
@@ -426,8 +380,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       });
     }
 
-    // Pages, Navigasi, Footer, Site Settings only for Admin & Redaksi
-    if (roleKey === 'admin' || roleKey === 'redaksi') {
+    // Pages, Navigasi, Footer for Super Admin & Editor (aligned with rbac.ts checkRoutePermission)
+    if (isEditorOrHigher) {
       masterItems.push(
         {
           name: 'Pages',
@@ -448,17 +402,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
           path: '/batutv-control/footer',
           icon: PanelBottom,
           isReady: true,
-        },
-        {
-          name: 'Site Settings',
-          path: '/batutv-control/site-settings',
-          icon: Sliders,
-          isReady: true,
         }
       );
     }
 
-    if (roleKey === 'admin') {
+    // Site Settings is for Super Admin
+    if (isSuperAdmin) {
+      masterItems.push({
+        name: 'Site Settings',
+        path: '/batutv-control/site-settings',
+        icon: Sliders,
+        isReady: true,
+      });
+    }
+
+    if (isSuperAdmin) {
       masterItems.push({
         name: 'Banner',
         path: '/batutv-control/banner',
@@ -475,8 +433,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       });
     }
 
-    // 4. PENGATURAN SECTION (Only Admin)
-    if (roleKey === 'admin') {
+    // 4. PENGATURAN SECTION (Only Super Admin)
+    if (isSuperAdmin) {
       sections.push({
         title: 'PENGATURAN',
         items: [
@@ -515,11 +473,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         currentPath.startsWith('/batutv-control/berita/edit')
       );
     }
-    if (subPath === '/batutv-control/videos') {
+    if (subPath === '/batutv-control/videos' || subPath === '/batutv-control/video') {
       return (
         currentPath === '/batutv-control/videos' ||
+        currentPath === '/batutv-control/video' ||
         currentPath === '/batutv-control/videos/semua' ||
-        currentPath.startsWith('/batutv-control/videos/edit')
+        currentPath === '/batutv-control/video/semua' ||
+        currentPath.startsWith('/batutv-control/videos/edit') ||
+        currentPath.startsWith('/batutv-control/video/edit')
       );
     }
     return currentPath === subPath;
@@ -604,12 +565,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 const Icon = item.icon;
                 const hasSubItems = Boolean(item.subItems && item.subItems.length > 0);
                 const isNewsItem = item.path === '/batutv-control/berita';
-                const isVideoItem = item.path === '/batutv-control/videos';
+                const isVideoItem = item.path === '/batutv-control/videos' || item.path === '/batutv-control/video';
                 const isExpanded = isNewsItem ? isNewsExpanded : isVideoItem ? isVideoExpanded : false;
                 const isParentActive =
                   currentPath === item.path ||
                   (isNewsItem && currentPath.startsWith('/batutv-control/berita')) ||
-                  (isVideoItem && currentPath.startsWith('/batutv-control/videos'));
+                  (isVideoItem && (currentPath.startsWith('/batutv-control/videos') || currentPath.startsWith('/batutv-control/video')));
 
                 const toggleExpand = (e: React.MouseEvent) => {
                   e.stopPropagation();
@@ -738,11 +699,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="text-white font-bold truncate block">{user?.name || 'Administrator'}</span>
             </div>
             <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border shrink-0 ${
-              roleKey === 'admin' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-              roleKey === 'redaksi' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
-              roleKey === 'editor' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-              roleKey === 'reporter' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-              'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+              isSuperAdmin ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+              isEditor ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+              'bg-blue-500/10 text-blue-400 border-blue-500/20'
             }`}>
               {roleKey.toUpperCase()}
             </span>

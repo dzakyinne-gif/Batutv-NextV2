@@ -35,6 +35,7 @@ import { UserResetPasswordModal } from './UserResetPasswordModal';
 import { UserDeleteModal } from './UserDeleteModal';
 import { RolePermissionMatrixModal } from './RolePermissionMatrixModal';
 import { LoginMonitoringModal } from './LoginMonitoringModal';
+import { isSuperAdminRole } from '../../../utils/rbac';
 
 interface UserManagementModuleProps {
   currentUser?: AdminUser | null;
@@ -450,7 +451,7 @@ export const UserManagementModule: React.FC<UserManagementModuleProps> = ({
               userToDelete.email.toLowerCase() === (currentUser as any).email.toLowerCase()
           )
         }
-        isLastAdmin={Boolean(userToDelete?.role === 'admin' && stats.admins <= 1)}
+        isLastAdmin={Boolean(isSuperAdminRole(userToDelete?.role) && stats.admins <= 1)}
       />
 
       <RolePermissionMatrixModal

@@ -21,20 +21,27 @@ import {
   deleteTag,
   bulkUpdateTagStatus,
   getStoredTagCounts,
+  TAGS_UPDATED_EVENT,
 } from '../../../data/tagAdminStore';
 import { TagListView } from './TagListView';
 import { TagFormModal } from './TagFormModal';
 import { TagDeleteModal } from './TagDeleteModal';
+import { isEditorOrHigherRole } from '../../../utils/rbac';
 
 interface TagManagementModuleProps {
   onNavigateToPublic?: (path: string) => void;
+  currentUser?: any;
 }
 
 export const TagManagementModule: React.FC<TagManagementModuleProps> = ({
   onNavigateToPublic,
+  currentUser,
 }) => {
   // Master state for tags with live counts
   const [tags, setTags] = useState<AdminTag[]>(() => getTagsWithCounts());
+
+  // RBAC check: Super Admin, Redaksi, Editor can mutate. Jurnalis, Wartawan, Reporter are read-only.
+  const canManage = !currentUser || isEditorOrHigherRole(currentUser?.role);
 
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -61,10 +68,21 @@ export const TagManagementModule: React.FC<TagManagementModuleProps> = ({
     }, 3500);
   }, []);
 
-  // Reload tags with live counts
+  // Reload tags with live counts & server sync
   const reloadTags = useCallback(() => {
     setTags(getTagsWithCounts());
   }, []);
+
+  React.useEffect(() => {
+    reloadTags();
+    const handleUpdate = () => {
+      setTags(getTagsWithCounts());
+    };
+    window.addEventListener(TAGS_UPDATED_EVENT, handleUpdate);
+    return () => {
+      window.removeEventListener(TAGS_UPDATED_EVENT, handleUpdate);
+    };
+  }, [reloadTags]);
 
   // Handler: Add or Edit Tag Save
   const handleSaveTag = (data: {
@@ -75,6 +93,11 @@ export const TagManagementModule: React.FC<TagManagementModuleProps> = ({
     seoTitle: string;
     metaDescription: string;
   }) => {
+    if (!canManage) {
+      showToast('Akses ditolak: Hanya Administrator atau Redaksi yang berwenang mengelola tag.', 'error');
+      return;
+    }
+
     if (tagToEdit) {
       const res = updateTag(tagToEdit.id, data);
       if (res.success) {
@@ -99,6 +122,11 @@ export const TagManagementModule: React.FC<TagManagementModuleProps> = ({
 
   // Handler: Delete Tag Confirm
   const handleConfirmDelete = (id: string) => {
+    if (!canManage) {
+      showToast('Akses ditolak: Hanya Administrator yang berwenang menghapus tag.', 'error');
+      return;
+    }
+
     const res = deleteTag(id);
     if (res.success) {
       showToast('Tag berhasil dihapus secara permanen.', 'success');
@@ -110,7 +138,13 @@ export const TagManagementModule: React.FC<TagManagementModuleProps> = ({
 
   // Handler: Toggle single status
   const handleToggleStatus = (id: string, currentStatus: TagStatus) => {
+    if (!canManage) {
+      showToast('Akses ditolak: Anda tidak memiliki wewenang mengubah status tag.', 'error');
+      return;
+    }
+
     const newStatus: TagStatus = currentStatus === 'active' ? 'inactive' : 'active';
+
     const res = updateTag(id, { status: newStatus });
     if (res.success) {
       showToast(
@@ -125,6 +159,11 @@ export const TagManagementModule: React.FC<TagManagementModuleProps> = ({
 
   // Handler: Deactivate tag from delete modal
   const handleDeactivateTag = (id: string) => {
+    if (!canManage) {
+      showToast('Akses ditolak: Anda tidak memiliki wewenang menonaktifkan tag.', 'error');
+      return;
+    }
+
     const res = updateTag(id, { status: 'inactive' });
     if (res.success) {
       showToast('Tag berhasil dinonaktifkan.', 'info');
@@ -134,6 +173,11 @@ export const TagManagementModule: React.FC<TagManagementModuleProps> = ({
 
   // Handler: Bulk status update
   const handleBulkUpdateStatus = (ids: string[], status: TagStatus) => {
+    if (!canManage) {
+      showToast('Akses ditolak: Anda tidak memiliki wewenang mengubah status tag secara massal.', 'error');
+      return;
+    }
+
     const res = bulkUpdateTagStatus(ids, status);
     if (res.success) {
       showToast(

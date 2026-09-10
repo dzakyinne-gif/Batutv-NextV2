@@ -15,7 +15,7 @@ import {
   AlertTriangle,
   Lock,
 } from 'lucide-react';
-import { CMSUser } from '../../../types/user';
+import { CMSUser, toCanonicalRole } from '../../../types/user';
 import { ROLE_PERMISSIONS_MATRIX } from '../../../data/userAdminStore';
 
 interface UserDetailModalProps {
@@ -37,7 +37,7 @@ export const UserDetailModal: React.FC<UserDetailModalProps> = ({
 }) => {
   if (!isOpen || !user) return null;
 
-  const roleInfo = ROLE_PERMISSIONS_MATRIX[user.role];
+  const roleInfo = ROLE_PERMISSIONS_MATRIX[toCanonicalRole(user.role)];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">

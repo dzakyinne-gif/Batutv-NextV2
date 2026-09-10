@@ -2,17 +2,21 @@ import React from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import ClientVideoDetailWrapper from '@/src/components/video/ClientVideoDetailWrapper';
-import { adminFirestoreVideoRepository } from '@/src/features/videos/data/adminFirestoreVideoRepository';
-import { resolveVideoThumbnail } from '@/src/features/videos/adapters/videoMapper';
-import { extractYouTubeVideoId } from '@/src/utils/youtube';
+import {
+  fetchVideoBySlugLive,
+  fetchPublishedVideosLive,
+  resolveVideoThumbnail,
+} from '@/src/features/videos';
 
 /**
  * ISR Revalidation: 60 detik.
- * Selaras dengan artikel (/berita/[slug]), menjaga kecepatan akses instan
- * melalui edge cache (SSG/ISR) sekaligus memperbarui rilis video baru atau
- * perubahan judul/metadata dalam 1 menit.
  */
 export const revalidate = 60;
+
+/**
+ * dynamicParams = true memungkinkan video baru yang dipublish setelah build time
+ * langsung di-render on-demand di server (SSR) dan di-cache secara otomatis.
+ */
 export const dynamicParams = true;
 
 interface NextVideoDetailPageProps {
@@ -20,51 +24,30 @@ interface NextVideoDetailPageProps {
 }
 
 export async function generateStaticParams() {
-  try {
-    const videos = await adminFirestoreVideoRepository.getVideos({
-      status: 'published',
-      limit: 30,
-    });
-    return videos
-      .filter((v) => Boolean(v.slug))
-      .map((v) => ({
-        slug: v.slug,
-      }));
-  } catch (err) {
-    console.warn('[generateStaticParams:video] Fallback to empty array:', err);
-    return [];
-  }
+  const result = await fetchPublishedVideosLive(30);
+  return result.videos.map((v) => ({
+    slug: v.slug,
+  }));
 }
 
 export async function generateMetadata({
   params,
 }: NextVideoDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const video = await adminFirestoreVideoRepository.getVideoBySlug(slug, 'published');
+  const result = await fetchVideoBySlugLive(slug);
 
-  if (!video || video.status !== 'published') {
+  if (result.source === 'not-found' || !result.video) {
     return {
       title: 'Video Tidak Ditemukan | BatuTV',
-      description: 'Halaman video liputan berita yang Anda cari tidak ditemukan di portal BatuTV.',
+      description: 'Halaman video yang Anda cari tidak ditemukan di portal BatuTV.',
     };
   }
 
-  // Cek pengamanan jika konten dijadwalkan di masa depan
-  if (video.scheduledAt && new Date(video.scheduledAt).getTime() > Date.now()) {
-    return {
-      title: 'Video Belum Tersedia | BatuTV',
-      description: 'Halaman video liputan berita ini belum dirilis untuk publik.',
-    };
-  }
-
-  const title = video.seoTitle || `${video.title} | Video BatuTV`;
-  const description = video.metaDescription || video.excerpt || video.description || 'Liputan video terkini seputar Kota Batu dan Malang Raya dari BatuTV.';
-  const thumbnailUrl = resolveVideoThumbnail(video);
-  const videoId =
-    video.youtubeVideoId ||
-    (video.youtubeUrl ? extractYouTubeVideoId(video.youtubeUrl) : null) ||
-    'dQw4w9WgXcQ';
-  const canonicalUrl = video.canonicalUrl || `https://batutv.id/video/${video.slug}`;
+  const video = result.video;
+  const title = `${video.title} | Video BatuTV`;
+  const description = video.excerpt || video.description?.slice(0, 160) || 'Tonton liputan video BatuTV.';
+  const posterUrl = resolveVideoThumbnail(video);
+  const canonicalUrl = `https://batutv.id/video/${video.slug}`;
 
   return {
     title,
@@ -74,29 +57,20 @@ export async function generateMetadata({
       description,
       type: 'video.other',
       url: canonicalUrl,
-      images: thumbnailUrl
+      images: posterUrl
         ? [
             {
-              url: thumbnailUrl,
+              url: posterUrl,
               alt: video.title,
             },
           ]
         : [],
-      videos: [
-        {
-          url: `https://www.youtube-nocookie.com/embed/${videoId}`,
-          secureUrl: `https://www.youtube-nocookie.com/embed/${videoId}`,
-          type: 'text/html',
-          width: 1280,
-          height: 720,
-        },
-      ],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: thumbnailUrl ? [thumbnailUrl] : [],
+      images: posterUrl ? [posterUrl] : [],
     },
     alternates: {
       canonical: canonicalUrl,
@@ -108,53 +82,13 @@ export default async function NextVideoDetailPage({
   params,
 }: NextVideoDetailPageProps) {
   const { slug } = await params;
-  const video = await adminFirestoreVideoRepository.getVideoBySlug(slug, 'published');
+  const result = await fetchVideoBySlugLive(slug);
 
-  // Proteksi status: hanya video dengan status 'published' yang diizinkan tayang ke publik.
-  // Draft, scheduled (belum waktunya), archived, dan trash dipicu ke Next.js notFound()
-  // untuk mencegah kebocoran konten sebelum rilis resmi redaksi.
-  if (!video || video.status !== 'published') {
+  // Jika video berstatus draft atau memang tidak ditemukan (404 riil di Firestore),
+  // picu Next.js notFound() agar merender halaman 404 asli.
+  if (result.source === 'not-found' || !result.video) {
     notFound();
   }
 
-  if (video.scheduledAt && new Date(video.scheduledAt).getTime() > Date.now()) {
-    notFound();
-  }
-
-  const videoId =
-    video.youtubeVideoId ||
-    (video.youtubeUrl ? extractYouTubeVideoId(video.youtubeUrl) : null) ||
-    'dQw4w9WgXcQ';
-  const thumbnailUrl = resolveVideoThumbnail(video);
-
-  // Schema.org VideoObject Structured Data for SEO Rich Snippets
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'VideoObject',
-    name: video.title,
-    description: video.excerpt || video.description || video.title,
-    thumbnailUrl: [thumbnailUrl],
-    uploadDate: video.publishedAt || video.createdAt || new Date().toISOString(),
-    duration: video.duration ? `PT${video.duration.replace(':', 'M')}S` : undefined,
-    embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}`,
-    contentUrl: video.youtubeUrl || `https://www.youtube.com/watch?v=${videoId}`,
-    publisher: {
-      '@type': 'Organization',
-      name: 'BatuTV',
-      logo: {
-        '@type': 'ImageObject',
-        url: 'https://batutv.id/batutv-logo.svg',
-      },
-    },
-  };
-
-  return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <ClientVideoDetailWrapper slug={slug} />
-    </>
-  );
+  return <ClientVideoDetailWrapper slug={slug} />;
 }

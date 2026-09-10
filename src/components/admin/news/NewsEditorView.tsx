@@ -22,13 +22,19 @@ import {
   Lock,
   Info,
 } from 'lucide-react';
-import { AdminArticle, ArticleStatus, AdminMedia, AdminUser } from '../../../types/admin';
-import { getStoredCategories } from '../../../data/categoryAdminStore';
+import { AdminArticle, ArticleStatus, AdminMedia, AdminUser, AdminCategory } from '../../../types/admin';
+import { getStoredCategories, CATEGORIES_UPDATED_EVENT } from '../../../data/categoryAdminStore';
 import { getActiveAuthors } from '../../../data/authorAdminStore';
-import { checkArticleEditPermission, canRolePublish, normalizeUserRole } from '../../../utils/rbac';
+import {
+  checkArticleEditPermission,
+  canRolePublish,
+  canRoleManageHeadlines,
+  normalizeUserRole,
+} from '../../../utils/rbac';
 import { NewsRichEditor } from './NewsRichEditor';
 import { NewsPreviewModal } from './NewsPreviewModal';
 import { MediaPickerModal } from '../media/MediaPickerModal';
+import { TaxonomyTagInput } from '../common/TaxonomyTagInput';
 
 interface NewsEditorViewProps {
   initialArticle?: AdminArticle | null;
@@ -78,18 +84,31 @@ export const NewsEditorView: React.FC<NewsEditorViewProps> = ({
   const canPublish = canRolePublish(currentUser?.role);
   const editPermission = checkArticleEditPermission(currentUser?.role, initialArticle, currentUser);
   const isReadOnly = editPermission.isReadOnly;
-  const isHeadlineAllowed = userRole === 'admin' || userRole === 'redaksi';
+  const isHeadlineAllowed = canRoleManageHeadlines(currentUser?.role);
 
   // Form State
   const [title, setTitle] = useState(initialArticle?.title || '');
   const [slug, setSlug] = useState(initialArticle?.slug || '');
   const [isSlugCustom, setIsSlugCustom] = useState(false);
   const [category, setCategory] = useState(initialArticle?.category || 'Daerah');
+  const [liveCategories, setLiveCategories] = useState<AdminCategory[]>(() => getStoredCategories());
 
-  // Dynamic active categories from master data
+  // Sync active categories with local cache and store updates
+  useEffect(() => {
+    const handleCategoriesUpdate = () => {
+      setLiveCategories(getStoredCategories());
+    };
+
+    window.addEventListener(CATEGORIES_UPDATED_EVENT, handleCategoriesUpdate);
+    return () => {
+      window.removeEventListener(CATEGORIES_UPDATED_EVENT, handleCategoriesUpdate);
+    };
+  }, []);
+
+  // Dynamic active categories from master data & live sync
   const availableCategories = React.useMemo(() => {
-    const stored = getStoredCategories();
-    const filtered = stored.filter(
+    const baseSource = liveCategories.length > 0 ? liveCategories : getStoredCategories();
+    const filtered = baseSource.filter(
       (c) => c.status === 'active' && c.contentTypes.includes('news')
     );
     if (filtered.length > 0) {
@@ -100,7 +119,7 @@ export const NewsEditorView: React.FC<NewsEditorViewProps> = ({
       return names;
     }
     return DEFAULT_CATEGORIES;
-  }, [category]);
+  }, [category, liveCategories]);
 
   // Master Data Penulis integration
   const availableAuthors = useMemo(() => {
@@ -201,9 +220,12 @@ export const NewsEditorView: React.FC<NewsEditorViewProps> = ({
   // SEO State
   const [seoTitle, setSeoTitle] = useState(initialArticle?.seoTitle || '');
   const [metaDescription, setMetaDescription] = useState(initialArticle?.metaDescription || '');
-  const [tagsInput, setTagsInput] = useState(
-    initialArticle?.tags?.join(', ') || 'Kota Batu, Berita Daerah'
-  );
+  const [selectedTags, setSelectedTags] = useState<string[]>(() => {
+    if (initialArticle?.tags && Array.isArray(initialArticle.tags)) {
+      return initialArticle.tags;
+    }
+    return ['Kota Batu', 'Berita Daerah'];
+  });
 
   // Headline Hero (SO3) State
   const [isHeadline, setIsHeadline] = useState<boolean>(initialArticle?.isHeadline || false);
@@ -262,11 +284,11 @@ export const NewsEditorView: React.FC<NewsEditorViewProps> = ({
     const finalStatus = targetStatus || status;
     const finalDateTimeIso = `${publishDate}T${publishTime}:00`;
     const finalSlug = slug || 'artikel-baru';
-    const categorySlug = category.toLowerCase().replace(/\s+/g, '-');
-    const tags = tagsInput
-      .split(',')
-      .map((t) => t.trim())
-      .filter((t) => t.length > 0);
+    const allKnownCats = liveCategories.length > 0 ? liveCategories : getStoredCategories();
+    const matchedCategory = allKnownCats.find((c) => c.name === category);
+    const categorySlug = matchedCategory?.slug || category.toLowerCase().replace(/\s+/g, '-');
+    const categoryId = matchedCategory?.id;
+    const tags = selectedTags;
 
     return {
       id: initialArticle?.id || `art-${Date.now()}`,
@@ -276,6 +298,7 @@ export const NewsEditorView: React.FC<NewsEditorViewProps> = ({
       content: content || '<p>Tuliskan naskah berita di sini...</p>',
       category,
       categorySlug,
+      categoryId,
       author,
       authorId,
       editor,
@@ -933,16 +956,13 @@ export const NewsEditorView: React.FC<NewsEditorViewProps> = ({
             </div>
 
             {/* Tagar / Tags */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">Tagar Topik (Pisahkan Koma)</label>
-              <input
-                type="text"
-                value={tagsInput}
-                onChange={(e) => setTagsInput(e.target.value)}
-                placeholder="Kota Batu, Pertanian, Apel, Bumiaji"
-                className="w-full px-3 py-2 text-xs text-slate-900 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:outline-none"
-              />
-            </div>
+            <TaxonomyTagInput
+              tags={selectedTags}
+              onChange={setSelectedTags}
+              contentType="news"
+              label="Tagar Topik"
+              placeholder="Ketik topik berita atau pilih dari saran..."
+            />
           </div>
 
           {/* S3. PENGATURAN SEO & METADATA */}

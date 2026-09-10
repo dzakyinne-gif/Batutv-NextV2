@@ -1,60 +1,39 @@
-import { UserRole, RolePermissionDetail } from '../types/user';
+import { UserRole, toCanonicalRole } from '../types/user';
 import { AdminArticle, AdminUser } from '../types/admin';
 import { ROLE_PERMISSIONS_MATRIX, getStoredUsers } from '../data/userAdminStore';
-import { logSystemActivity } from '../data/systemSettingsStore';
 
 /**
  * RBAC & PERMISSION SERVICE
  * BatuTV Control CMS
  * 
  * Strict Role-Based Access Control enforcing editorial hierarchy:
- * 1. Admin (Super Admin) - Full system & CMS root control
- * 2. Redaksi (Chief Editor) - Full editorial, media, categories, navigation, homepage
- * 3. Editor - Review, editing, and publishing all news and videos
- * 4. Reporter - Create and edit own drafts, upload photos (NO direct publish)
- * 5. Kontributor - Draft submissions and photo upload (NO direct publish)
+ * 1. Super Admin (superadmin / admin) - Full system & CMS root control
+ * 2. Editor (editor / redaksi) - Review, editing, publishing, categories, tags, pages, navigation, media
+ * 3. Reporter (reporter / kontributor) - Create and edit own drafts, upload photos (NO direct publish)
  */
 
 export const normalizeUserRole = (roleStr?: string | null): UserRole => {
-  if (!roleStr) return 'admin';
-  const clean = roleStr.toLowerCase().trim();
-  if (
-    clean === 'admin' ||
-    clean === 'administrator' ||
-    clean === 'super administrator' ||
-    clean === 'super admin' ||
-    clean.includes('admin')
-  ) {
-    return 'admin';
-  }
-  if (
-    clean === 'redaksi' ||
-    clean === 'redaktur' ||
-    clean === 'pemred' ||
-    clean === 'pemimpin redaksi' ||
-    clean === 'dewan redaksi'
-  ) {
-    return 'redaksi';
-  }
-  if (clean === 'editor' || clean === 'penyunting') {
-    return 'editor';
-  }
-  if (
-    clean === 'reporter' ||
-    clean === 'wartawan' ||
-    clean === 'jurnalis' ||
-    clean.includes('reporter')
-  ) {
-    return 'reporter';
-  }
-  if (
-    clean === 'kontributor' ||
-    clean === 'penulis tamu' ||
-    clean === 'kolumnis'
-  ) {
-    return 'kontributor';
-  }
-  return 'reporter';
+  return toCanonicalRole(roleStr);
+};
+
+export const isSuperAdminRole = (roleInput?: string | null): boolean => {
+  const role = normalizeUserRole(roleInput);
+  return role === 'superadmin' || role === 'admin';
+};
+
+export const isEditorRole = (roleInput?: string | null): boolean => {
+  const role = normalizeUserRole(roleInput);
+  return role === 'editor' || role === 'redaksi';
+};
+
+export const isEditorOrHigherRole = (roleInput?: string | null): boolean => {
+  const role = normalizeUserRole(roleInput);
+  return role === 'superadmin' || role === 'admin' || role === 'editor' || role === 'redaksi';
+};
+
+export const isReporterRole = (roleInput?: string | null): boolean => {
+  const role = normalizeUserRole(roleInput);
+  return role === 'reporter' || role === 'kontributor';
 };
 
 export interface RouteAccessCheck {
@@ -73,6 +52,8 @@ export const checkRoutePermission = (
   path: string
 ): RouteAccessCheck => {
   const role = normalizeUserRole(roleInput);
+  const isSuperAdmin = isSuperAdminRole(roleInput);
+  const isEditorOrHigher = isEditorOrHigherRole(roleInput);
 
   // 1. Dashboard is accessible to all authenticated CMS users
   if (path === '/batutv-control/dashboard' || path === '/batutv-control') {
@@ -87,16 +68,16 @@ export const checkRoutePermission = (
   if (path.startsWith('/batutv-control/berita')) {
     // Everyone can access news, but specific subroutes have role restrictions
     if (path.includes('/headline')) {
-      // Headline curation only for Admin and Redaksi
-      if (role === 'admin' || role === 'redaksi') {
+      // Headline curation for Super Admin and Editor
+      if (isEditorOrHigher) {
         return { allowed: true, role, moduleName: 'Headline Berita' };
       }
       return {
         allowed: false,
         role,
-        requiredRoleName: 'Administrator atau Dewan Redaksi',
+        requiredRoleName: 'Administrator atau Dewan Redaksi / Editor',
         moduleName: 'Headline Berita',
-        reason: 'Penetapan urutan headline beranda hanya dapat dikelola oleh Administrator dan Dewan Redaksi.',
+        reason: 'Penetapan urutan headline beranda hanya dapat dikelola oleh Administrator dan Redaksi/Editor.',
       };
     }
     return { allowed: true, role, moduleName: 'Manajemen Berita' };
@@ -104,15 +85,15 @@ export const checkRoutePermission = (
 
   // 3. Video Module
   if (path.startsWith('/batutv-control/videos') || path.startsWith('/batutv-control/video')) {
-    if (role === 'admin' || role === 'redaksi' || role === 'editor' || role === 'reporter' || role === 'kontributor') {
+    if (isEditorOrHigher) {
       return { allowed: true, role, moduleName: 'Manajemen Video' };
     }
     return {
       allowed: false,
       role,
-      requiredRoleName: 'Staff Redaksi / Reporter',
+      requiredRoleName: 'Administrator, Redaksi, atau Editor',
       moduleName: 'Manajemen Video',
-      reason: 'Pengelolaan video dibatasi khusus untuk staff yang memiliki izin konten.',
+      reason: 'Pengelolaan video YouTube dibatasi khusus untuk tim Redaksi dan Editor.',
     };
   }
 
@@ -123,34 +104,34 @@ export const checkRoutePermission = (
 
   // 5. Kategori & Tag
   if (path.startsWith('/batutv-control/kategori')) {
-    if (role === 'admin' || role === 'redaksi') {
+    if (isEditorOrHigher) {
       return { allowed: true, role, moduleName: 'Manajemen Kategori' };
     }
     return {
       allowed: false,
       role,
-      requiredRoleName: 'Administrator atau Dewan Redaksi',
+      requiredRoleName: 'Administrator atau Redaksi / Editor',
       moduleName: 'Manajemen Kategori',
-      reason: 'Taksonomi rubrik/kategori portal hanya dapat dikonfigurasi oleh Administrator dan Dewan Redaksi.',
+      reason: 'Taksonomi rubrik/kategori portal hanya dapat dikonfigurasi oleh Administrator dan Redaksi/Editor.',
     };
   }
 
   if (path.startsWith('/batutv-control/tag')) {
-    if (role === 'admin' || role === 'redaksi') {
+    if (isEditorOrHigher) {
       return { allowed: true, role, moduleName: 'Manajemen Tag & Topik' };
     }
     return {
       allowed: false,
       role,
-      requiredRoleName: 'Administrator atau Dewan Redaksi',
+      requiredRoleName: 'Administrator atau Redaksi / Editor',
       moduleName: 'Manajemen Tag & Topik',
-      reason: 'Manajemen kata kunci dan topik viral dibatasi untuk Administrator dan Redaksi.',
+      reason: 'Manajemen kata kunci dan topik viral dibatasi untuk Administrator dan Redaksi/Editor.',
     };
   }
 
   // 6. Master Data Penulis
   if (path.startsWith('/batutv-control/penulis') || path.startsWith('/batutv-control/master-data/penulis')) {
-    if (role === 'admin' || role === 'redaksi' || role === 'editor') {
+    if (isEditorOrHigher) {
       return { allowed: true, role, moduleName: 'Master Data Penulis' };
     }
     return {
@@ -164,52 +145,52 @@ export const checkRoutePermission = (
 
   // 7. Master Data Pages, Navigasi, Footer, Site Settings
   if (path.startsWith('/batutv-control/pages') || path.startsWith('/batutv-control/master-data/pages')) {
-    if (role === 'admin' || role === 'redaksi') {
+    if (isEditorOrHigher) {
       return { allowed: true, role, moduleName: 'Master Data Halaman Statis (Pages)' };
     }
     return {
       allowed: false,
       role,
-      requiredRoleName: 'Administrator atau Dewan Redaksi',
+      requiredRoleName: 'Administrator atau Redaksi / Editor',
       moduleName: 'Master Data Pages',
-      reason: 'Halaman statis portal (Tentang Kami, Pedoman Siber, dll) dilindungi untuk Administrator & Redaksi.',
+      reason: 'Halaman statis portal (Tentang Kami, Pedoman Siber, dll) dilindungi untuk Administrator & Redaksi/Editor.',
     };
   }
 
   if (path.startsWith('/batutv-control/navigasi')) {
-    if (role === 'admin' || role === 'redaksi') {
+    if (isEditorOrHigher) {
       return { allowed: true, role, moduleName: 'Manajemen Navigasi SO2' };
     }
     return {
       allowed: false,
       role,
-      requiredRoleName: 'Administrator atau Dewan Redaksi',
+      requiredRoleName: 'Administrator atau Redaksi / Editor',
       moduleName: 'Manajemen Navigasi',
-      reason: 'Susunan menu navigasi portal utama hanya boleh diubah oleh Administrator dan Redaksi.',
+      reason: 'Susunan menu navigasi portal utama hanya boleh diubah oleh Administrator dan Redaksi/Editor.',
     };
   }
 
   if (path.startsWith('/batutv-control/footer') || path.startsWith('/batutv-control/master-data/footer')) {
-    if (role === 'admin' || role === 'redaksi') {
+    if (isEditorOrHigher) {
       return { allowed: true, role, moduleName: 'Master Data Footer' };
     }
     return {
       allowed: false,
       role,
-      requiredRoleName: 'Administrator atau Dewan Redaksi',
+      requiredRoleName: 'Administrator atau Redaksi / Editor',
       moduleName: 'Master Data Footer',
-      reason: 'Konfigurasi tautan dan struktur footer portal hanya dapat dikelola oleh Administrator.',
+      reason: 'Konfigurasi tautan dan struktur footer portal hanya dapat dikelola oleh Administrator dan Editor.',
     };
   }
 
   if (path.startsWith('/batutv-control/site-settings') || path.startsWith('/batutv-control/master-data/site-settings')) {
-    if (role === 'admin' || role === 'redaksi') {
+    if (isSuperAdmin) {
       return { allowed: true, role, moduleName: 'Master Data Site Settings' };
     }
     return {
       allowed: false,
       role,
-      requiredRoleName: 'Administrator',
+      requiredRoleName: 'Administrator (Super Admin)',
       moduleName: 'Master Data Site Settings',
       reason: 'Pengaturan identitas portal, SEO meta, dan branding dibatasi khusus untuk Administrator.',
     };
@@ -217,7 +198,7 @@ export const checkRoutePermission = (
 
   // 8. User Management (Pengguna)
   if (path.startsWith('/batutv-control/pengguna')) {
-    if (role === 'admin') {
+    if (isSuperAdmin) {
       return { allowed: true, role, moduleName: 'Manajemen Pengguna' };
     }
     return {
@@ -231,7 +212,7 @@ export const checkRoutePermission = (
 
   // 9. Pengaturan Sistem (System Settings)
   if (path.startsWith('/batutv-control/pengaturan')) {
-    if (role === 'admin') {
+    if (isSuperAdmin) {
       return { allowed: true, role, moduleName: 'Pengaturan Sistem & Keamanan' };
     }
     return {
@@ -251,53 +232,46 @@ export const checkRoutePermission = (
  * Article Publishing Permissions
  */
 export const canRolePublish = (roleInput?: string): boolean => {
-  const role = normalizeUserRole(roleInput);
-  return role === 'admin' || role === 'redaksi' || role === 'editor';
+  return isEditorOrHigherRole(roleInput);
 };
 
 /**
  * Permanent Deletion Permissions (Super Admin only)
  */
 export const canRolePermanentDelete = (roleInput?: string): boolean => {
-  const role = normalizeUserRole(roleInput);
-  return role === 'admin';
+  return isSuperAdminRole(roleInput);
 };
 
 /**
  * Move Published Content to Trash Permissions
  */
 export const canRoleTrashPublished = (roleInput?: string): boolean => {
-  const role = normalizeUserRole(roleInput);
-  return role === 'admin' || role === 'redaksi' || role === 'editor';
+  return isEditorOrHigherRole(roleInput);
 };
 
 /**
  * Headline Management Permissions
  */
 export const canRoleManageHeadlines = (roleInput?: string): boolean => {
-  const role = normalizeUserRole(roleInput);
-  return role === 'admin' || role === 'redaksi';
+  return isEditorOrHigherRole(roleInput);
 };
 
 /**
  * Video Management Permissions
  */
 export const canRoleManageVideos = (roleInput?: string): boolean => {
-  const role = normalizeUserRole(roleInput);
-  return role === 'admin' || role === 'redaksi' || role === 'editor';
+  return isEditorOrHigherRole(roleInput);
 };
 
 /**
  * User & Security Settings Permissions
  */
 export const canRoleManageUsers = (roleInput?: string): boolean => {
-  const role = normalizeUserRole(roleInput);
-  return role === 'admin';
+  return isSuperAdminRole(roleInput);
 };
 
 export const canRoleManageSystemSettings = (roleInput?: string): boolean => {
-  const role = normalizeUserRole(roleInput);
-  return role === 'admin';
+  return isSuperAdminRole(roleInput);
 };
 
 /**
@@ -354,6 +328,8 @@ export const checkArticleEditPermission = (
   user?: AdminUser | { email?: string; name?: string; authorId?: string } | null
 ): { allowed: boolean; isReadOnly: boolean; reason?: string } => {
   const role = normalizeUserRole(roleInput);
+  const isEditorOrHigher = isEditorOrHigherRole(roleInput);
+  const isReporter = isReporterRole(roleInput);
 
   // New article creation is allowed for all roles
   if (!article) {
@@ -361,7 +337,7 @@ export const checkArticleEditPermission = (
   }
 
   // Admin, Redaksi, and Editor can edit any article
-  if (role === 'admin' || role === 'redaksi' || role === 'editor') {
+  if (isEditorOrHigher) {
     return { allowed: true, isReadOnly: false };
   }
 
@@ -369,7 +345,7 @@ export const checkArticleEditPermission = (
   const isAuthor = isUserArticleAuthor(article, user);
 
   if (isAuthor) {
-    if (article.status === 'published' && (role === 'reporter' || role === 'kontributor')) {
+    if (article.status === 'published' && isReporter) {
       return {
         allowed: true,
         isReadOnly: true,
@@ -395,10 +371,8 @@ export const canUserDeleteArticle = (
   article: AdminArticle | null | undefined,
   user?: AdminUser | { email?: string; name?: string; authorId?: string } | null
 ): boolean => {
-  const role = normalizeUserRole(roleInput);
-  if (role === 'admin' || role === 'redaksi') return true;
-  if (role === 'editor') return true;
-  if (role === 'reporter') {
+  if (isEditorOrHigherRole(roleInput)) return true;
+  if (isReporterRole(roleInput)) {
     return isUserArticleAuthor(article, user) && article?.status !== 'published';
   }
   return false;

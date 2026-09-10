@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertTriangle, Trash2, X, ShieldAlert, UserCheck } from 'lucide-react';
-import { CMSUser } from '../../../types/user';
+import { CMSUser, toCanonicalRole } from '../../../types/user';
 import { ROLE_PERMISSIONS_MATRIX } from '../../../data/userAdminStore';
 
 interface UserDeleteModalProps {
@@ -22,7 +22,7 @@ export const UserDeleteModal: React.FC<UserDeleteModalProps> = ({
 }) => {
   if (!isOpen || !user) return null;
 
-  const roleInfo = ROLE_PERMISSIONS_MATRIX[user.role];
+  const roleInfo = ROLE_PERMISSIONS_MATRIX[toCanonicalRole(user.role)];
   const isBlocked = isSelf || isLastAdmin;
 
   return (

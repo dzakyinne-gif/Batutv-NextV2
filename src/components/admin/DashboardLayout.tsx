@@ -49,22 +49,24 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     if (path.startsWith('/batutv-control/berita/headline')) return 'Headline Hero Portal';
     if (path.startsWith('/batutv-control/berita')) return 'Manajemen Berita';
 
-    if (path.startsWith('/batutv-control/videos/tambah')) return 'Tambah Video Baru';
-    if (path.startsWith('/batutv-control/videos/edit')) return 'Edit Video';
-    if (path.startsWith('/batutv-control/videos/draft')) return 'Draft Video';
-    if (path.startsWith('/batutv-control/videos/terjadwal')) return 'Video Terjadwal';
-    if (path.startsWith('/batutv-control/videos/terbit')) return 'Video Terbit';
-    if (path.startsWith('/batutv-control/videos/sampah')) return 'Sampah Video';
-    if (path.startsWith('/batutv-control/videos')) return 'Manajemen Video';
+    if (path.startsWith('/batutv-control/videos/tambah') || path.startsWith('/batutv-control/video/tambah')) return 'Tambah Video Baru';
+    if (path.startsWith('/batutv-control/videos/edit') || path.startsWith('/batutv-control/video/edit')) return 'Edit Video';
+    if (path.startsWith('/batutv-control/videos/draft') || path.startsWith('/batutv-control/video/draft')) return 'Draft Video';
+    if (path.startsWith('/batutv-control/videos/terjadwal') || path.startsWith('/batutv-control/video/terjadwal')) return 'Video Terjadwal';
+    if (path.startsWith('/batutv-control/videos/terbit') || path.startsWith('/batutv-control/video/terbit')) return 'Video Terbit';
+    if (path.startsWith('/batutv-control/videos/sampah') || path.startsWith('/batutv-control/video/sampah')) return 'Sampah Video';
+    if (path.startsWith('/batutv-control/videos') || path.startsWith('/batutv-control/video')) return 'Manajemen Video';
 
     switch (path) {
       case '/batutv-control/dashboard':
         return 'Dashboard';
       case '/batutv-control/kategori':
+      case '/batutv-control/categories':
         return 'Manajemen Kategori';
       case '/batutv-control/media':
         return 'Penyimpanan Media';
       case '/batutv-control/tag':
+      case '/batutv-control/tags':
         return 'Manajemen Tag & Topik';
       case '/batutv-control/penulis':
       case '/batutv-control/master-data/penulis':

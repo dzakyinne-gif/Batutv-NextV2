@@ -97,7 +97,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ user, onNavigate }
       {/* A02.3.3 — Quick Actions */}
       <QuickActions
         onWriteArticle={() => onNavigate('/batutv-control/berita/tulis')}
-        onAddVideo={() => onNavigate('/batutv-control/videos')}
+        onAddVideo={() => onNavigate('/batutv-control/videos/tambah')}
       />
 
       {/* Main Grid: Left (Articles + Videos), Right (Recent Activity) */}

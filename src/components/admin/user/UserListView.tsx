@@ -23,7 +23,7 @@ import {
   Unlock,
   LogOut,
 } from 'lucide-react';
-import { CMSUser, UserRole, UserStatus } from '../../../types/user';
+import { CMSUser, UserRole, UserStatus, toCanonicalRole } from '../../../types/user';
 import { ROLE_PERMISSIONS_MATRIX } from '../../../data/userAdminStore';
 
 interface UserListViewProps {
@@ -80,7 +80,9 @@ export const UserListView: React.FC<UserListViewProps> = ({
         (user.authorName && user.authorName.toLowerCase().includes(q));
 
       // 2. Role Filter
-      const matchRole = roleFilter === 'all' || user.role === roleFilter;
+      const matchRole =
+        roleFilter === 'all' ||
+        toCanonicalRole(user.role) === toCanonicalRole(roleFilter as any);
 
       // 3. Status Filter
       const matchStatus = statusFilter === 'all' || user.status === statusFilter;
@@ -175,11 +177,9 @@ export const UserListView: React.FC<UserListViewProps> = ({
               className="h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-700 focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/10 shadow-xs capitalize"
             >
               <option value="all">Semua Peran (Role)</option>
-              <option value="admin">Administrator</option>
-              <option value="redaksi">Redaksi</option>
+              <option value="superadmin">Super Administrator</option>
               <option value="editor">Editor</option>
               <option value="reporter">Reporter</option>
-              <option value="kontributor">Kontributor</option>
             </select>
 
             {/* Status Filter */}

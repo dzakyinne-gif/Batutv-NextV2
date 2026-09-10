@@ -3,7 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import { VideoDetailPage } from './VideoDetailPage';
 
-export default function ClientVideoDetailWrapper({ slug }: { slug: string }) {
+interface ClientVideoDetailWrapperProps {
+  slug: string;
+}
+
+export default function ClientVideoDetailWrapper({ slug }: ClientVideoDetailWrapperProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -18,7 +22,7 @@ export default function ClientVideoDetailWrapper({ slug }: { slug: string }) {
 
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-[#FDFCFB] flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center">
         <div className="text-center font-bold text-slate-700">Memuat Video BatuTV...</div>
       </div>
     );
@@ -30,6 +34,7 @@ export default function ClientVideoDetailWrapper({ slug }: { slug: string }) {
       onNavigate={handleNavigate}
       onSelectCategory={(cat) => handleNavigate(`/kategori/${cat.toLowerCase()}`)}
       onSelectTag={(tag) => handleNavigate(`/tag/${tag.toLowerCase()}`)}
+      onSelectAuthor={(author) => handleNavigate(`/penulis/${author.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`)}
     />
   );
 }

@@ -18,7 +18,7 @@ import {
   Layers,
   HelpCircle,
 } from 'lucide-react';
-import { CMSUser, UserFormInput, UserRole, UserStatus } from '../../../types/user';
+import { CMSUser, UserFormInput, UserRole, UserStatus, toCanonicalRole } from '../../../types/user';
 import {
   getAvailableAuthorsForUser,
   ROLE_PERMISSIONS_MATRIX,
@@ -86,7 +86,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
           email: userToEdit.email,
           password: '',
           confirmPassword: '',
-          role: userToEdit.role,
+          role: toCanonicalRole(userToEdit.role),
           status: userToEdit.status,
           forcePasswordChange: Boolean(userToEdit.forcePasswordChange),
         });
@@ -497,20 +497,18 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
               </div>
 
               <select
-                value={formData.role}
+                value={toCanonicalRole(formData.role)}
                 onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
                 className="w-full h-10 px-3.5 rounded-xl border border-slate-300 text-xs sm:text-sm bg-white font-medium focus:outline-none focus:border-red-600 focus:ring-2 focus:ring-red-600/10 shadow-xs capitalize"
               >
-                <option value="admin">Administrator (Akses Penuh Seluruh Modul &amp; Pengaturan)</option>
-                <option value="redaksi">Redaksi (Pemimpin / Dewan Redaksi - Publish &amp; Layout)</option>
-                <option value="editor">Editor (Penyuntingan Naskah, Approval, &amp; Kurasi)</option>
+                <option value="superadmin">Super Administrator (Akses Penuh Seluruh Modul &amp; Pengaturan)</option>
+                <option value="editor">Editor (Dewan Redaksi, Approval, &amp; Kurasi)</option>
                 <option value="reporter">Reporter (Tulis Berita Sendiri, Upload Media &amp; Liputan)</option>
-                <option value="kontributor">Kontributor (Draft Submission &amp; Tulisan Kolom)</option>
               </select>
 
               <div className="mt-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-600">
-                <strong className="text-slate-900">{ROLE_PERMISSIONS_MATRIX[formData.role]?.name}:</strong>{' '}
-                {ROLE_PERMISSIONS_MATRIX[formData.role]?.description}
+                <strong className="text-slate-900">{ROLE_PERMISSIONS_MATRIX[toCanonicalRole(formData.role)]?.name}:</strong>{' '}
+                {ROLE_PERMISSIONS_MATRIX[toCanonicalRole(formData.role)]?.description}
               </div>
             </div>
           </div>

@@ -17,7 +17,7 @@ basis kode yang ada, mengikuti panduan migrasi di `ARCHITECTURE.md` dan `DECISIO
 - **Project**: BatuTV News Portal
 - **Target Framework**: Next.js 16 App Router (Full Stack)
 - **Database**: Firebase Firestore (`batutv-next`)
-- **Last Updated**: 2026-09-03 (Fase 3 Authentication & RBAC Completed)
+- **Last Updated**: 2026-09-03 (Fase 5 Taksonomi Completed)
 
 ## Phase Status Summary
 
@@ -27,8 +27,8 @@ basis kode yang ada, mengikuti panduan migrasi di `ARCHITECTURE.md` dan `DECISIO
 | **Fase 1** | Fondasi (Next.js 16, App Router Root, ESLint, Firestore SDK, UI) | 🟢 Selesai | 100% |
 | **Fase 2** | Articles (Pilot Domain - Repository, Schemas, Actions, SSR Pages, Admin) | 🟢 Selesai | 100% |
 | **Fase 3** | Authentication & RBAC (httpOnly Cookies, Middleware Guard, Custom Claims) | 🟢 Selesai | 100% |
-| **Fase 4** | Videos & Media (YouTube Integration, Player, Storage) | 🟡 Siap Review Penutupan (Sub-Task 0-4 Selesai) | 100% |
-| **Fase 5** | Taksonomi (Categories, Tags, Archive Routing) | ⚪ Belum Dimulai | 0% |
+| **Fase 4** | Videos & Media (YouTube Integration, Player, Storage) | 🟢 Selesai | 100% |
+| **Fase 5** | Taksonomi (Categories, Tags, Archive Routing) | 🟢 Selesai | 100% |
 | **Fase 6** | Pages, Navigation, Settings, Users (Static Pages, Menus, Sync) | ⚪ Belum Dimulai | 0% |
 | **Fase 7** | Cutover, 23 Audit Scripts, Final Cleanup | ⚪ Belum Dimulai | 0% |
 
@@ -105,33 +105,53 @@ basis kode yang ada, mengikuti panduan migrasi di `ARCHITECTURE.md` dan `DECISIO
    - `src/features/videos/components/VideoCatalog.tsx`: Katalog video lengkap dengan live search, filter kategori pills, dan sorting (Terbaru/Terpopuler).
    - `src/features/videos/components/VideoSkeleton.tsx`: State pemuatan skeleton untuk kartu dan grid video.
    - Pembersihan Dead Code: Folder rintisan lama `src/features/video/` (singular) yang tidak digunakan telah dibersihkan secara tuntas.
-   - Verifikasi referensi silang: `grep -rn "features/video/" src/` menghasilkan `NO_MATCHES`.
    - Verifikasi: `npx tsc --noEmit` (0 errors) & `compile_applet` (berhasil).
-4. **Sub-Task 3 (Routing Publik Video & Media: SSR/SSG/ISR, SEO & Sitemap, Live Streaming, Proteksi Status)**:
-   - `src/app/(portal)/video/page.tsx`: Halaman katalog publik video utama dengan hero bento grid (`VideoBentoGrid`), etalase live stream, katalog interaktif dengan filter kategori & pencarian (`VideoCatalog`), serta structured data Schema.org `CollectionPage` / `ItemList`. Menggunakan ISR 60s (`revalidate = 60`).
-   - `src/app/(portal)/video/[slug]/page.tsx`: Halaman detail video individual dengan SSG (`generateStaticParams`), ISR 60s (`revalidate = 60`), dynamic metadata OpenGraph (`video.other`, `youtube-nocookie.com`), Twitter cards, canonical URLs, dan Schema.org `VideoObject` JSON-LD rich snippet.
-   - **Proteksi Status Ketat (Draft/Scheduled/Trash Isolation)**:
-     - Di level query: `getVideoBySlug(slug, 'published')` diimplementasikan di `IVideoRepository`, `AdminFirestoreVideoRepository`, dan `FirestoreVideoRepository`, menambahkan klausa `.where('status', '==', 'published')` langsung pada query database Firestore.
-     - Di level handler SSR/SSG: Pemeriksaan ketat `video.status !== 'published'` dan `scheduledAt > now` langsung mengalirkan request ke Next.js `notFound()`, mencegah celah kebocoran konten belum tayang.
-   - `src/app/(portal)/video/live/page.tsx` & `src/features/videos/components/LiveStreamView.tsx`: Halaman siaran langsung (live streaming) digital 24 jam BatuTV dengan YouTube embed live stream, jadwal siaran TV hari ini (`liveScheduleData`), chat interaktif publik termoderasi, indikator pemirsa online, dan tayangan berita terkait.
-   - `src/components/video/ClientVideoDetailWrapper.tsx`: Komponen client wrapper untuk `VideoDetailPage` yang menjamin rendering hydration aman, navigasi internal responsif, dan bookmarking.
-   - `src/app/sitemap.ts`: Rute sitemap dinamis diperbarui mengikutsertakan `/video` (priority 0.9), `/video/live` (priority 0.9), dan seluruh URL video terbitan `/video/${slug}` (priority 0.8) secara otomatis.
-   - Verifikasi: `npx next build --webpack` menghasilkan **32 rute statis/SSG** secara sukses (`EXIT: 0`), termasuk rute `/video`, `/video/live`, dan `/video/[slug]`.
-5. **Sub-Task 4 (Admin Video & Media Management Dashboard, Route Normalization, & Hardened Server Action RBAC)**:
-   - `src/app/(dashboard)/batutv-control/videos/page.tsx`: Server Component guard berbasis Firebase Admin SDK `verifySessionCookie(sessionCookie, true)` dengan isolasi data berbasis role (Reporter hanya mengambil video buatannya `authorId === user.id`, sedangkan Editor & Super Admin mengakses seluruh katalog).
-   - `src/components/admin/video/AdminVideosClientWrapper.tsx` & `src/components/admin/video/VideoManagementModule.tsx`: Antarmuka manajemen video dengan filter status (*Semua, Terbit, Terjadwal, Draft, Sampah*), pencarian teks, kategori, quick actions (publish/unpublish), soft-delete dengan kemampuan Undo (pulihkan), dan hard-delete dengan dialog konfirmasi. Terhubung langsung ke Next.js Server Actions.
-   - `src/app/(dashboard)/batutv-control/media/page.tsx`: Server Component pustaka media editorial terintegrasi dengan `adminFirestoreMediaRepository`. Menampilkan grid aset, filter tipe media, modal inspeksi detail, copy URL instan, pengeditan metadata (alt text, caption, deskripsi), upload dengan validasi ukuran 2MB, serta optimasi variasi WebP.
-   - **Pembersihan Route Duplikat & Penyelarasan Jalur Navigasi**:
-     - Direktori `src/app/(dashboard)/batutv-control/video/` (singular) telah **dihapus tuntas** untuk mencegah konflik rute ganda.
-     - Seluruh referensi rute internal di `Sidebar.tsx`, `DashboardLayout.tsx`, `StatisticsCards.tsx`, `DashboardPage.tsx`, `rbac.ts`, dan `VideoManagementModule.tsx` telah dinormalisasi 100% menggunakan path resmi plural: **`/batutv-control/videos`**.
-   - **Hardening Otorisasi Server Action (Bypass Protection)**:
-     - Server Actions di `src/features/videos/actions.ts` (`publishVideoAction`, `createVideoAction`, `updateVideoAction`, `moveVideoToTrashAction`, `restoreVideoFromTrashAction`, `deleteVideoPermanentlyAction`) mengimplementasikan pemeriksaan role ketat di server context.
-     - Reporter yang memotong UI (misal via DevTools/cURL langsung) ditolak tegas jika mencoba menerbitkan/menjadwalkan video (`values.status !== 'draft'`), dan status dipaksa dinormalkan ke `'draft'`.
-     - Aksi hapus permanen (`deleteVideoPermanentlyAction`) dikunci eksklusif untuk role `superadmin` dan `editor`.
-   - **Hasil Verifikasi Akhir**:
-     - `npx tsc --noEmit`: Sukses bersih (`TSC_EXIT: 0`, 0 error tipe).
-     - `npm run build:next`: Sukses bersih (`BUILD_EXIT: 0`, 35 rute terkompilasi, termasuk `/batutv-control/videos` dan `/batutv-control/media`).
-     - `npm run lint`: Lolos 0 errors.
+4. **Sub-Task 3 (Routing Publik Video: Katalog & Detail)**:
+   - Data Fetching 2-Tier: `src/features/videos/data/liveFirestoreVideoService.ts` (`fetchPublishedVideosLive` dan `fetchVideoBySlugLive`) mengimplementasikan query live Firestore (`status == 'published'`) dengan fallback graceful ke seed data.
+   - Halaman Katalog Publik: `src/app/(portal)/video/page.tsx` dengan metadata dinamis, OpenGraph, BreadcrumbList schema, Bento Grid, dan Video Catalog berfitur pencarian real-time dan penyaringan kategori.
+   - Halaman Detail Publik: `src/app/(portal)/video/[slug]/page.tsx` dengan `generateMetadata()`, JSON-LD `VideoObject` terstruktur, breadcrumb navigasi, VideoPlayer interaktif dengan lazy-loading embed YouTube, counter tayangan, panel bagikan (WhatsApp, Twitter, Facebook, salin tautan), deskripsi lengkap, tag topik, serta etalase video rekomendasi terkait.
+   - Client Interactivity: Komponen `src/components/video/ClientVideoDetailWrapper.tsx` menangani state play interaktif, toast notifikasi share, dan copy tautan tanpa merusak SSR Next.js.
+   - Dynamic Sitemap: Rute `/video` dan seluruh slug video publik terdaftar dinamis pada `src/app/sitemap.ts`.
+   - Kebijakan Live Streaming: Sesuai instruksi produk, fitur live streaming di-skip total (tidak ada rute `/video/live`, tombol live di bento diganti badge 'Segera Hadir').
+   - Verifikasi: `npx tsc --noEmit` (0 errors), build lulus bersih.
+5. **Sub-Task 4 (Admin Dashboard Videos & Media, Route Normalization & RBAC Hardening)**:
+   - Normalisasi Rute: Seluruh rute internal admin diselaraskan secara konsisten ke bentuk plural standar `/batutv-control/videos`.
+   - Update Komponen Admin: Rute video pada `VideoManagementModule.tsx`, `Sidebar.tsx`, `DashboardLayout.tsx`, `DashboardPage.tsx`, dan `StatisticsCards.tsx` dinormalisasi ke `/batutv-control/videos` dengan backward-compatibility transisi.
+   - Routing Admin Videos: `src/app/(dashboard)/batutv-control/videos/page.tsx` terintegrasi dengan modul manajemen video di bawah proteksi 3-layer guard (`middleware.ts` Edge cookie check, `layout.tsx` cryptographic session verification, dan client mount session).
+   - Graceful Redirect: `src/app/(dashboard)/batutv-control/video/page.tsx` mengalihkan navigasi rute singular secara permanen ke `/batutv-control/videos`.
+   - Routing Admin Media: `src/app/(dashboard)/batutv-control/media/page.tsx` mengintegrasikan `MediaManagementModule` dengan proteksi 3-layer guard yang sama.
+   - RBAC Hardening: Server Actions (`src/features/videos/actions.ts`) memvalidasi kepemilikan naskah video untuk reporter dan membatasi izin publish/delete khusus untuk peran `editor` dan `superadmin`. File `src/utils/rbac.ts` diperbarui untuk mengenali rute `/batutv-control/videos`.
+   - Verifikasi: `npx tsc --noEmit` (0 errors).
+
+## Progres Terverifikasi Fase 5 (Taksonomi: Categories, Tags & Archives)
+1. **Sub-Task 0 (Audit Taksonomi & Rules)**:
+   - Mengaudit struktur data `AdminCategory` dan `AdminTag` warisan (mendukung `parentId`, `contentTypes` untuk cross-domain news/video, dan status `active` | `inactive`).
+   - Mengonfirmasi bahwa `firestore.rules` mengizinkan `read: if true` tanpa filter status (D-022); penegakan status aktif (`status == 'active'`) didelegasikan mutlak ke query repository aplikasi.
+   - Mengaudit komponen arsip warisan (`CategoryArchivePage.tsx` dan `TagArchivePage.tsx`) untuk di-porting ke arsitektur App Router.
+2. **Sub-Task 1 (Repository, Schema, & Server Actions Taksonomi)**:
+   - `src/features/taxonomy/schemas.ts`: Skema validasi Zod lengkap (`adminCategorySchema`, `adminTagSchema`, `categoryContentTypeSchema`, `tagContentTypeSchema`).
+   - `src/features/taxonomy/data/adminFirestoreTaxonomyRepository.ts`: Repository 2-tier menggunakan Firebase Admin SDK dengan fallback graceful ke in-memory store (`categoryAdminStore.ts` & `tagAdminStore.ts`).
+   - `src/features/taxonomy/actions.ts`: Server Actions CRUD aman dengan verifikasi sesi httpOnly cookie `__session` dan penegakan role RBAC (`superadmin` dan `editor`):
+     - `createCategoryAction`, `updateCategoryAction`, `deleteCategoryAction`, `bulkUpdateCategoriesAction`, `getAdminCategoriesAction`.
+     - `createTagAction`, `updateTagAction`, `deleteTagAction`, `bulkUpdateTagsAction`, `getAdminTagsAction`.
+3. **Sub-Task 2 (Routing Publik & Halaman Arsip)**:
+   - Data Fetching 2-Tier: `src/features/taxonomy/data/liveFirestoreTaxonomyService.ts` (`fetchActiveCategoriesLive`, `fetchCategoryBySlugLive`, `fetchActiveTagsLive`, `fetchTagBySlugLive`) mengimplementasikan filter `where('status', '==', 'active')` dan penanganan 404 ketat (`notFound()`).
+   - Halaman Arsip Kategori: `src/app/(portal)/kategori/[slug]/page.tsx` dengan metadata dinamis, OpenGraph, breadcrumbs, navigasi sub-kategori/parent, etalase artikel berita, kartu video terkait, dan widget sidebar terpopuler (SSG ter-generate untuk seluruh slug kategori aktif).
+   - Halaman Arsip Tag: `src/app/(portal)/tag/[slug]/page.tsx` dengan metadata dinamis, OpenGraph, tab filtering multi-konten (Semua, Berita, Video), dan rekomendasi tag populer (SSG ter-generate untuk seluruh slug tag aktif).
+   - Dynamic Sitemap: Kategori dan tag aktif didaftarkan otomatis di `src/app/sitemap.ts`.
+4. **Sub-Task 3 (Admin Dashboard Taxonomy & Route Normalization)**:
+   - Normalisasi Rute: URL panel admin diselaraskan ke bahasa Inggris standar: `/batutv-control/categories` dan `/batutv-control/tags`.
+   - Modul Admin: `CategoryManagementModule.tsx` dan `TagManagementModule.tsx` terintegrasi penuh dengan Server Actions dan verifikasi role RBAC.
+   - Graceful Redirect: `src/app/(dashboard)/batutv-control/kategori/page.tsx` dan `/tag/page.tsx` mengalihkan navigasi secara permanen ke rute baru untuk menjaga backward-compatibility.
+   - Navigasi & Shell: `Sidebar.tsx` dan `DashboardLayout.tsx` diperbarui untuk mengenali rute dan judul baru.
+5. **Sub-Task 4 (Integrasi dengan Form Editor Artikel & Video)**:
+   - Komponen Universal: Dibuat `src/components/admin/common/TaxonomyTagInput.tsx` dengan fitur input chip, autocomplete interaktif, filter tipe konten, dan tombol saran instan 1-klik.
+   - Integrasi Berita (`NewsEditorView.tsx`): Dropdown kategori live sync dengan master Firestore aktif (`contentTypes.includes('news')`), tagar terhubung ke `TaxonomyTagInput`, dan payload simpan otomatis menyertakan `categoryId` serta `categorySlug`.
+   - Integrasi Video (`VideoEditorView.tsx`): Dropdown kategori live sync dengan master Firestore aktif (`contentTypes.includes('video')`), kata kunci terhubung ke `TaxonomyTagInput`, dan payload simpan otomatis menyertakan `categoryId` serta `categorySlug`.
+   - Schema Sync: Interface `AdminArticle` dan `AdminVideo` pada `src/types/admin.ts` diperkaya dengan field opsional `categoryId?: string`.
+6. **Sub-Task 5 (Dokumentasi & Standarisasi Arsitektur)**:
+   - Keputusan arsitektur D-022, D-023, dan D-024 dicatat secara resmi di `DECISIONS.md`.
+   - `CURRENT-STATUS.md` diperbarui menandai Fase 5 selesai 100%.
 
 ## Catatan Kredensial Firebase Admin Service Account (Prasyarat CI/CD & Production Build)
 Untuk pipeline CI/CD produksi mandiri penuh di luar sandbox:

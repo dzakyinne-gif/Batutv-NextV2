@@ -155,18 +155,14 @@ export class AdminFirestoreVideoRepository implements IVideoRepository {
     return fallback || null;
   }
 
-  async getVideoBySlug(slug: string, status?: VideoStatus): Promise<AdminVideo | null> {
+  async getVideoBySlug(slug: string): Promise<AdminVideo | null> {
     try {
       const adminDb = getAdminFirestore();
-      let queryRef: FirebaseFirestore.Query = adminDb
+      const snap = await adminDb
         .collection(COLLECTION_NAME)
-        .where('slug', '==', slug);
-
-      if (status) {
-        queryRef = queryRef.where('status', '==', status);
-      }
-
-      const snap = await queryRef.limit(1).get();
+        .where('slug', '==', slug)
+        .limit(1)
+        .get();
 
       if (!snap.empty) {
         const docSnap = snap.docs[0];
@@ -176,9 +172,7 @@ export class AdminFirestoreVideoRepository implements IVideoRepository {
       console.warn(`[AdminFirestoreVideoRepository] getVideoBySlug error (${err.message}).`);
     }
 
-    const fallback = initialAdminVideos.find(
-      (v) => (v.slug === slug || v.id === slug) && (!status || v.status === status)
-    );
+    const fallback = initialAdminVideos.find((v) => v.slug === slug || v.id === slug);
     return fallback || null;
   }
 

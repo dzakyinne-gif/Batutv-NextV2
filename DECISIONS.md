@@ -173,6 +173,78 @@
   - Implementasi Fase 4 tetap ramping, aman, dan tidak menambah kompleksitas infrastruktur/rules bucket baru.
   - DataURL base64 langsung di Firestore dicatat sebagai technical debt terkait batas 1MB dokumen Firestore.
 
+### D-022: Penegakan Filter Status Taksonomi di Level Aplikasi (Repository/Query)
+- **Status**: Diterima
+- **Tanggal**: 2026-09-03 (Fase 5 Sub-Task 1 & 2)
+- **Konteks**:
+  Aturan keamanan `firestore.rules` untuk koleksi `categories` dan `tags` mengizinkan `read: if true` tanpa filter status (terbuka publik untuk kebutuhan navigasi dan badge UI portal). Beda dengan `articles` dan `videos` di mana rules membatasi `read` hanya untuk dokumen dengan `status == 'published'`, pada taksonomi dokumen berstatus `inactive` secara teknis dapat dibaca oleh client mana pun jika query tidak difilter.
+- **Keputusan**:
+  Penegakan filter status aktif taksonomi ditegakkan secara ketat dan mutlak pada level repository/query aplikasi:
+  1. `liveFirestoreTaxonomyService.ts`: Menggunakan filter query `where('status', '==', 'active')` baik pada pemanggilan tunggal (by slug) maupun koleksi list.
+  2. Fallback in-memory store: Mengaplikasikan filter `.filter(c => c.status === 'active')`.
+  3. Halaman arsip publik `/kategori/[slug]` dan `/tag/[slug]`: Memvalidasi status aktif secara ketat dan memicu `notFound()` (404 kanonik) jika taksonomi yang diminta berstatus non-aktif atau tidak terdaftar.
+- **Konsekuensi**:
+  - Integritas data publik terjaga tanpa perlu mengubah struktur rules yang sudah stabil.
+  - Taksonomi non-aktif terlindungi dari pemaparan tidak sengaja di portal publik.
 
+### D-023: Normalisasi Rute Admin Taksonomi (/categories & /tags) dengan Graceful Redirect
+- **Status**: Diterima
+- **Tanggal**: 2026-09-03 (Fase 5 Sub-Task 3)
+- **Konteks**:
+  Rute admin lama portal berita menggunakan penamaan campuran: bahasa Indonesia untuk taksonomi (`/batutv-control/kategori` dan `/batutv-control/tag`), sedangkan modul lainnya menggunakan bahasa Inggris standar plural (`/batutv-control/articles`, `/batutv-control/videos`, `/batutv-control/media`).
+- **Keputusan**:
+  Menormalisasi rute admin taksonomi ke bahasa Inggris standar: `/batutv-control/categories` dan `/batutv-control/tags`. Untuk menjamin kompatibilitas ke belakang bagi tautan lama, riwayat browser, atau bookmark staf redaksi, rute `/batutv-control/kategori` dan `/batutv-control/tag` diimplementasikan sebagai graceful permanent redirect (`redirect('/batutv-control/categories')` dan `redirect('/batutv-control/tags')`).
+- **Konsekuensi**:
+  - Konvensi URL seluruh panel admin konsisten.
+  - Tidak ada broken link bagi staf redaksi yang mengakses path lama.
 
+### D-024: Integrasi Form Editor Artikel & Video via TaxonomyTagInput & Live Categories Sync
+- **Status**: Diterima
+- **Tanggal**: 2026-09-03 (Fase 5 Sub-Task 4)
+- **Konteks**:
+  Form editor naskah berita (`NewsEditorView`) dan video (`VideoEditorView`) sebelumnya mengandalkan string input koma manual untuk tagar dan daftar kategori lokal statis tanpa validasi sinkronisasi ke master data taksonomi di Firestore.
+- **Keputusan**:
+  1. Membangun komponen reusable `TaxonomyTagInput` (`src/components/admin/common/TaxonomyTagInput.tsx`) yang menyediakan fitur chip interaktif, autocomplete saran dari master tag aktif, filter relevansi konten (`news` vs `video`), dan quick-selection chips.
+  2. Mengintegrasikan sinkronisasi kategori live dari master taksonomi ke dalam dropdown `NewsEditorView` dan `VideoEditorView` dengan filter `status == 'active'` dan tipe konten yang sesuai.
+  3. Menyimpan referensi terstruktur `categoryId` dan `categorySlug` yang teresolusi secara otomatis di payload simpan naskah berita dan video.
+- **Konsekuensi**:
+  - Mengurangi inkonsistensi penamaan tag dan typo redaksi.
+  - Memastikan seluruh artikel dan video terindeks ke taksonomi aktif yang sah.
 
+### D-025: Pemisahan Akses Server Actions vs Client Store pada Komponen Klien SPA
+- **Status**: Diterima
+- **Tanggal**: 2026-09-04 (Pasca Fase 5 / Hardening Arsitektur)
+- **Konteks**:
+  Komponen UI admin yang di-render dalam mode SPA Vite (`src/components/admin/...`) sempat mengimpor Server Actions (`src/features/taxonomy/actions.ts`). Karena `actions.ts` mengimpor `firebaseAdmin.ts` yang memerlukan modul runtime Node.js server (`@google-cloud/firestore`, `firebase-admin`, `stream`, `tls`), bundler klien Vite mengeksternalkannya menjadi `undefined`, sehingga memicu error runtime browser `Uncaught TypeError: Class extends value undefined is not a constructor or null` dan layar putih (blank screen).
+- **Keputusan**:
+  1. Komponen sisi klien (SPA) yang berjalan di bawah bundler Vite/browser DILARANG mengimpor Server Actions yang mengikat dependensi Firebase Admin SDK Node.js.
+  2. Komponen sisi klien berinteraksi melalui client data store (`categoryAdminStore.ts`, `tagAdminStore.ts`) yang menggunakan Firebase Client SDK (`src/repositories/firestore/*`) dan event-driven state sync (`CATEGORIES_UPDATED_EVENT`, `TAGS_UPDATED_EVENT`).
+  3. Server Actions (`src/features/taxonomy/actions.ts`) didedikasikan secara eksklusif untuk Server Components dan route handlers Next.js (SSR/App Router).
+  4. Menyelaraskan aturan `firestore.rules` agar mengizinkan peran `editor` selain `superadmin` (`isSuperAdmin() || hasRole('editor')`) untuk operasi write pada koleksi `categories` dan `tags`.
+- **Konsekuensi**:
+  - Bundle klien bersih 100% dari kebocoran modul server Node.js.
+  - Mencegah runtime crash dan layar putih pada preview browser.
+  - Arsitektur dua-jalur (Client Store via Client SDK untuk CSR, Server Actions via Admin SDK untuk SSR Next.js) terdokumentasi dan terisolasi secara tegas.
+
+### D-026: Penyelarasan Field `role` Dokumen Firestore `CMSUser` ke 3 Role Kanonik
+- **Status**: Diterima
+- **Tanggal**: 2026-09-04 (Fase 6 Sub-Task 0)
+- **Konteks**:
+  Terdapat diskrepansi antara 5 nilai role warisan legacy di dokumen Firestore CMSUser (`admin`, `redaksi`, `editor`, `reporter`, `kontributor`) dengan 3 role kanonik sistem otorisasi Firebase Auth Custom Claims (`superadmin`, `editor`, `reporter`). Kondisi ini berpotensi memicu fragmentasi hak akses (dual-role system) dan inkonsistensi evaluasi izin pada guard SSR maupun aturan keamanan Firestore (`firestore.rules`).
+- **Keputusan**:
+  1. Menyelaraskan seluruh field `role` dokumen Firestore `CMSUser` (`/users/{userId}`) ke 3 role kanonik: `superadmin` | `editor` | `reporter` sebagai *single source of truth*.
+  2. Menerapkan tabel pemetaan kanonik definitif:
+     | Nilai Lama (`UserRole`) | Nilai Kanonik Baru (`CanonicalUserRole`) |
+     | :--- | :--- |
+     | `admin` | `superadmin` |
+     | `redaksi` | `editor` |
+     | `editor` | `editor` |
+     | `reporter` | `reporter` |
+     | `kontributor` | `reporter` |
+  3. Mempertahankan helper `toCanonicalRole()` pada `src/types/user.ts` untuk normalisasi non-destruktif saat membaca/menyimpan dokumen Firestore di repository layer (`FirestoreUserRepository`).
+  4. Menyelaraskan seed data `INITIAL_CMS_USERS`, helper jabatan redaksi `mapAuthorPositionToRole()`, dan agregasi statistik `getUserStats()` di `src/data/userAdminStore.ts` agar langsung menggunakan nilai kanonik dengan tetap menyediakan alias kompatibilitas mundur.
+  5. Menyelaraskan validasi RBAC pada `src/utils/rbac.ts` agar memeriksa role kanonik secara langsung dan konsisten dengan hierarki otorisasi.
+- **Konsekuensi**:
+  - Satu sistem peran tunggal yang seragam dari token klaim Firebase Auth, cookie sesi SSR, hingga penyimpanan dokumen database Firestore.
+  - Menghilangkan ambiguitas pemetaan peran pada UI formulir dan pengelolaan staf redaksi.
+  - Kompatibilitas mundur tetap terlindungi secara aman selama proses transisi migrasi data.

@@ -18,20 +18,28 @@ import {
   updateCategory,
   deleteCategory,
   bulkUpdateCategoryStatus,
+  CATEGORIES_UPDATED_EVENT,
 } from '../../../data/categoryAdminStore';
 import { CategoryListView } from './CategoryListView';
 import { CategoryFormModal } from './CategoryFormModal';
 import { CategoryDeleteModal } from './CategoryDeleteModal';
+import { isEditorOrHigherRole } from '../../../utils/rbac';
 
 interface CategoryManagementModuleProps {
   onNavigateToPublic?: (path: string) => void;
+  currentUser?: any;
 }
 
 export const CategoryManagementModule: React.FC<CategoryManagementModuleProps> = ({
   onNavigateToPublic,
+  currentUser,
 }) => {
   // Master state for categories
   const [categories, setCategories] = useState<AdminCategory[]>(() => getCategoriesWithCounts());
+  const [isLoading, setIsLoading] = useState(false);
+
+  // RBAC check: Super Admin, Redaksi, Editor can mutate. Jurnalis, Wartawan, Reporter are read-only.
+  const canManage = !currentUser || isEditorOrHigherRole(currentUser?.role);
 
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -58,10 +66,21 @@ export const CategoryManagementModule: React.FC<CategoryManagementModuleProps> =
     }, 3500);
   }, []);
 
-  // Reload categories with live counts
+  // Reload categories with live counts & server sync
   const reloadCategories = useCallback(() => {
     setCategories(getCategoriesWithCounts());
   }, []);
+
+  useEffect(() => {
+    reloadCategories();
+    const handleUpdate = () => {
+      setCategories(getCategoriesWithCounts());
+    };
+    window.addEventListener(CATEGORIES_UPDATED_EVENT, handleUpdate);
+    return () => {
+      window.removeEventListener(CATEGORIES_UPDATED_EVENT, handleUpdate);
+    };
+  }, [reloadCategories]);
 
   // Handler: Add or Edit Category Save
   const handleSaveCategory = (data: {
@@ -74,6 +93,11 @@ export const CategoryManagementModule: React.FC<CategoryManagementModuleProps> =
     seoTitle: string;
     metaDescription: string;
   }) => {
+    if (!canManage) {
+      showToast('Akses ditolak: Hanya Administrator atau Redaksi yang berwenang mengubah kategori.', 'error');
+      return;
+    }
+
     if (categoryToEdit) {
       const res = updateCategory(categoryToEdit.id, data);
       if (res.success) {
@@ -98,6 +122,11 @@ export const CategoryManagementModule: React.FC<CategoryManagementModuleProps> =
 
   // Handler: Delete Category
   const handleConfirmDelete = (id: string) => {
+    if (!canManage) {
+      showToast('Akses ditolak: Hanya Administrator yang berwenang menghapus kategori.', 'error');
+      return;
+    }
+
     const res = deleteCategory(id);
     if (res.success) {
       showToast('Kategori berhasil dihapus secara permanen.', 'success');
@@ -109,7 +138,13 @@ export const CategoryManagementModule: React.FC<CategoryManagementModuleProps> =
 
   // Handler: Toggle single status
   const handleToggleStatus = (id: string, currentStatus: CategoryStatus) => {
+    if (!canManage) {
+      showToast('Akses ditolak: Anda tidak memiliki wewenang mengubah status kategori.', 'error');
+      return;
+    }
+
     const newStatus: CategoryStatus = currentStatus === 'active' ? 'inactive' : 'active';
+
     const res = updateCategory(id, { status: newStatus });
     if (res.success) {
       showToast(
@@ -124,6 +159,11 @@ export const CategoryManagementModule: React.FC<CategoryManagementModuleProps> =
 
   // Handler: Deactivate category from delete modal
   const handleDeactivateCategory = (id: string) => {
+    if (!canManage) {
+      showToast('Akses ditolak: Anda tidak memiliki wewenang menonaktifkan kategori.', 'error');
+      return;
+    }
+
     const res = updateCategory(id, { status: 'inactive' });
     if (res.success) {
       showToast('Kategori berhasil dinonaktifkan.', 'info');
@@ -133,6 +173,11 @@ export const CategoryManagementModule: React.FC<CategoryManagementModuleProps> =
 
   // Handler: Bulk status update
   const handleBulkUpdateStatus = (ids: string[], status: CategoryStatus) => {
+    if (!canManage) {
+      showToast('Akses ditolak: Anda tidak memiliki wewenang mengubah status kategori secara massal.', 'error');
+      return;
+    }
+
     const res = bulkUpdateCategoryStatus(ids, status);
     if (res.success) {
       showToast(
