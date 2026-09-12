@@ -33,10 +33,17 @@ export const NewsFeedItem: React.FC<NewsFeedItemProps> = ({
   const itemHref = resolvedHref || undefined;
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    if (onSelect) {
+    // If user holds modifier key (Cmd/Ctrl/Shift/Alt) or middle-clicks, allow default browser behavior (open new tab/window)
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
+      return;
+    }
+
+    // If href is missing or placeholder '#', fall back to onSelect handler with preventDefault
+    if ((!itemHref || itemHref === '#') && onSelect) {
+      e.preventDefault();
       onSelect(post);
     }
+    // If href is valid, let browser handle native navigation without triggering onSelect (avoids double-navigation)
   };
 
   return (

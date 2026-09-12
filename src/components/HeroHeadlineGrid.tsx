@@ -136,10 +136,17 @@ export const HeroHeadlineGrid: React.FC<HeroHeadlineGridProps> = ({
   const { main, subHeadlines = defaultHeroHeadlineData.subHeadlines, terpopuler = defaultTerpopulerNews } = data;
 
   const handleCardClick = (e: React.MouseEvent<HTMLAnchorElement>, item: HeadlineArticleData) => {
-    e.preventDefault();
-    if (onSelectArticle) {
+    // If user holds modifier key (Cmd/Ctrl/Shift/Alt) or middle-clicks, allow default browser behavior (open new tab/window)
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
+      return;
+    }
+
+    // If href is missing or placeholder '#', fall back to onSelectArticle handler with preventDefault
+    if ((!item.href || item.href === '#') && onSelectArticle) {
+      e.preventDefault();
       onSelectArticle(item);
     }
+    // If href is valid, let browser handle native navigation without triggering onSelectArticle (avoids double-navigation)
   };
 
   return (

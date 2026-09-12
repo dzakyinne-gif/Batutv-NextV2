@@ -17,7 +17,7 @@ basis kode yang ada, mengikuti panduan migrasi di `ARCHITECTURE.md` dan `DECISIO
 - **Project**: BatuTV News Portal
 - **Target Framework**: Next.js 16 App Router (Full Stack)
 - **Database**: Firebase Firestore (`batutv-next`)
-- **Last Updated**: 2026-09-10 (Fase 6 Pages, Navigation, Settings, Users Completed)
+- **Last Updated**: 2026-09-12 (Fase 7 Sub-Task B5: ClientAppWrapper Retired & App.tsx Fully Unmounted)
 
 ## Phase Status Summary
 
@@ -30,7 +30,14 @@ basis kode yang ada, mengikuti panduan migrasi di `ARCHITECTURE.md` dan `DECISIO
 | **Fase 4** | Videos & Media (YouTube Integration, Player, Storage) | 🟢 Selesai | 100% |
 | **Fase 5** | Taksonomi (Categories, Tags, Archive Routing) | 🟢 Selesai | 100% |
 | **Fase 6** | Pages, Navigation, Settings, Users (Static Pages, Menus, Sync) | 🟢 Selesai | 100% |
-| **Fase 7** | Cutover, 23 Audit Scripts, Final Cleanup | 🟡 Sedang Berjalan | Sub-Task 1 Selesai (23/23 Audit Scripts Verified) |
+| **Fase 7** | Cutover, 23 Audit Scripts, Final Cleanup | 🟡 Sedang Berjalan | Sub-Task 1 & Sub-Task B5 Selesai (App.tsx 100% Unmounted) |
+
+## Milestone Terverifikasi: Penyelesaian Task B5 (Pensiun Total ClientAppWrapper & Unmount Penuh App.tsx)
+- **Commit 1 (`db19ee1`)**: Halaman `/login` (`src/app/(auth)/login/page.tsx`) dimigrasi ke komponen native Next.js `LoginPage.tsx` lengkap dengan proteksi ketat open redirect (penolakan scheme eksternal `://`, protocol-relative `//`, dan normalisasi backslash `\`).
+- **Commit 2 (`05ef711`)**: Root dashboard `/batutv-control` (`src/app/(dashboard)/batutv-control/page.tsx`) dimigrasi ke komponen native Next.js `DashboardPage.tsx` dengan sinkronisasi sesi fail-safe (tanpa fabrikasi identitas palsu, selaras dengan arsitektur server guard layout). Technical debt #7 (alias 'admin' pada `rbac.ts`) resmi didokumentasikan.
+- **Commit 3 (`016cfcb`)**: File jembatan SPA `src/components/ClientAppWrapper.tsx` resmi dihapus secara permanen setelah audit membuktikan 0 sisa referensi di seluruh repositori.
+- **Dampak Arsitektural**: Komponen monolithic SPA warisan (`src/App.tsx`) kini **100% unmounted** dan tidak lagi dirender atau diimpor oleh rute Next.js manapun di seluruh aplikasi. Seluruh 104 rute App Router kini beroperasi secara native.
+
 
 ## Catatan Integritas Metrik Audit & Simulasi (Fase 7 Sub-Task 1)
 > **PENTING UNTUK DOKUMENTASI & SESI AI BERIKUTNYA**:
@@ -249,6 +256,18 @@ Untuk pipeline CI/CD produksi mandiri penuh di luar sandbox:
      2. Owner project sudah login-test berkali-kali dalam kondisi berbeda (browser berbeda, setelah logout-login ulang) untuk memastikan custom claims persisten.
      3. Konfirmasi eksplisit dari owner project sebelum whitelist dihapus dan rules di-deploy.
    - **Status**: DITUNDA, bukan dibatalkan. Dicatat sebagai item terbuka pasca-Fase 7.
+
+6. **Inkonsistensi Jalur Data Video Section Homepage (Initial SSR vs Client Event Refresh)**:
+   - *Kondisi*: Video section homepage: initial SSR render pakai `mapAdminVideosToHomepageItems` (Firestore live), tapi refresh client-side setelah event `batutv_videos_updated` masih pakai `getPublishedVideosForHomepage()` (`videoAdminStore.ts` / localStorage) — berpotensi sedikit perbedaan format antara render awal vs setelah update.
+   - *Tingkat Keparahan*: Low priority (tidak memblokir build / fungsionalitas utama).
+   - *Rencana Mitigasi*: Pertimbangkan unifikasi di optimisasi berikutnya agar event listener client juga mengalirkan data melalui mapper yang seragam.
+
+7. **Alias Role Legacy 'admin' pada rbac.ts Tidak Selaras dengan Enum Kanonik RBAC**:
+   - *Kondisi*: Pada `src/utils/rbac.ts`, pengecekan `isSuperAdmin` mengikutsertakan string `'admin'` (`role === 'superadmin' || role === 'admin'`). Di sisi lain, sistem RBAC kanonik proyek (Fase 3 & 6) secara ketat hanya mendefinisikan 3 role kanonik: `superadmin` | `editor` | `reporter` (di mana `'admin'` merupakan representasi legacy).
+   - *Risiko Operasional*: Komponen yang menggunakan string non-kanonik `'admin'` secara tidak sengaja memperoleh wewenang setara `superadmin` di level client gatekeeper `rbac.ts`, sementara di backend Firestore Rules atau custom claims token hal ini tidak dikenali atau berbeda penanganannya.
+   - *Tingkat Keparahan*: Medium (perlu normalisasi terpadu pada saat refactor RBAC pasca-cutover).
+   - *Rencana Mitigasi*: Standarisasi seluruh kode client agar selalu melalui `toCanonicalRole()` dan menghapus toleransi string legacy `'admin'` dari `rbac.ts` secara menyeluruh setelah semua akun termigrasi.
+
 
 
 ## Status Keamanan & Lingkungan Database Firestore (Audit 2026-09-03)
