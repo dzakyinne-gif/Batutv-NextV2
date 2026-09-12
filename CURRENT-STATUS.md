@@ -17,7 +17,7 @@ basis kode yang ada, mengikuti panduan migrasi di `ARCHITECTURE.md` dan `DECISIO
 - **Project**: BatuTV News Portal
 - **Target Framework**: Next.js 16 App Router (Full Stack)
 - **Database**: Firebase Firestore (`batutv-next`)
-- **Last Updated**: 2026-09-03 (Fase 5 Taksonomi Completed)
+- **Last Updated**: 2026-09-10 (Fase 6 Pages, Navigation, Settings, Users Completed)
 
 ## Phase Status Summary
 
@@ -29,8 +29,17 @@ basis kode yang ada, mengikuti panduan migrasi di `ARCHITECTURE.md` dan `DECISIO
 | **Fase 3** | Authentication & RBAC (httpOnly Cookies, Middleware Guard, Custom Claims) | 🟢 Selesai | 100% |
 | **Fase 4** | Videos & Media (YouTube Integration, Player, Storage) | 🟢 Selesai | 100% |
 | **Fase 5** | Taksonomi (Categories, Tags, Archive Routing) | 🟢 Selesai | 100% |
-| **Fase 6** | Pages, Navigation, Settings, Users (Static Pages, Menus, Sync) | ⚪ Belum Dimulai | 0% |
-| **Fase 7** | Cutover, 23 Audit Scripts, Final Cleanup | ⚪ Belum Dimulai | 0% |
+| **Fase 6** | Pages, Navigation, Settings, Users (Static Pages, Menus, Sync) | 🟢 Selesai | 100% |
+| **Fase 7** | Cutover, 23 Audit Scripts, Final Cleanup | 🟡 Sedang Berjalan | Sub-Task 1 Selesai (23/23 Audit Scripts Verified) |
+
+## Catatan Integritas Metrik Audit & Simulasi (Fase 7 Sub-Task 1)
+> **PENTING UNTUK DOKUMENTASI & SESI AI BERIKUTNYA**:
+> Seluruh metrik operasional yang dilaporkan oleh 23 skrip audit (seperti *"Availability 99.99%"*, *"Recovery Point Objective (RPO) 4.2h"*, *"Recovery Time Objective (RTO) ~12m"*, *"Disaster Recovery Score 100%"*, dan *"Error Budget 90%"*) berasal dari **skrip audit internal, benchmark sintetis, dan konstanta uji invariant arsitektural**, **BUKAN dari data pemantauan operasional produksi historis nyata**.
+>
+> Hal ini karena portal berita BatuTV ini berada dalam tahap migrasi dan belum memiliki riwayat logging/uptime jangka panjang di infrastruktur produksi aktif. Rincian pengujian:
+> - **Simulasi Ketersediaan & SLO (`auditSLO.ts`, `auditErrorBudget.ts`)**: Menggunakan konstanta target SLA kontrak (99.99%) dan latensi diukur melalui simulasi load test sintetis (900 iterasi request internal via loop `runIntegrityAudit.ts`).
+> - **Disaster Recovery & Backup (`verifyBackup.ts`, `auditDisasterRecovery.ts`)**: Angka usia backup (4.2h) dan estimasi pemulihan (12m) merupakan benchmark simulasi bucket Cloud Storage. Validasi riil yang berjalan langsung terhadap Firestore adalah inspeksi ke-14 koleksi kanonikal database aktif.
+> - **Chaos Engineering (`runChaosAudit.ts`)**: Berjalan dalam mode aman `DRY_RUN_SIMULATION` (100% Non-Destructive) untuk memverifikasi branching penanganan error, isolasi fallback cache, dan resilience policy tanpa mengganggu server produksi nyata.
 
 ## Progres Terverifikasi Fase 3 (Authentication & RBAC)
 1. **Sub-Task 1 (Setup Firebase Admin SDK Server-Only)**:
@@ -153,6 +162,32 @@ basis kode yang ada, mengikuti panduan migrasi di `ARCHITECTURE.md` dan `DECISIO
    - Keputusan arsitektur D-022, D-023, dan D-024 dicatat secara resmi di `DECISIONS.md`.
    - `CURRENT-STATUS.md` diperbarui menandai Fase 5 selesai 100%.
 
+## Progres Terverifikasi Fase 6 (Pages, Navigation, Settings, Users)
+1. **Sub-Task 1 (Pages - Static Content Pages)**:
+   - Feature slice `src/features/pages/` dibangun dengan validasi Zod (`schemas.ts`) termasuk perlindungan 29 kata kunci reserved slugs sistem.
+   - 2-Tier Architecture Admin SDK (`adminFirestorePageRepository.ts`, `liveFirestorePageService.ts`) bebas dari Client SDK di server context (D-002 & D-027).
+   - Rute publik dinamis `src/app/(portal)/[slug]/page.tsx` dengan dukungan SSG/ISR (`revalidate = 60`), render Markdown, dan proteksi status 'published'.
+   - Admin dashboard route `src/app/(dashboard)/batutv-control/pages/page.tsx` berbasis Client SDK (`PageManagementModule.tsx`) dan aman dari import server action (D-025 & D-027).
+2. **Sub-Task 2 (Navigation Menu Builder)**:
+   - Ekstraksi data seed awal ke `src/data/initialNavigationData.ts` untuk memfasilitasi interoperabilitas bersih antara Client Store dan Server Fetcher.
+   - Feature slice `src/features/navigation/` terstandarisasi: `types.ts`, `schemas.ts` (validasi Zod label, url, targetType, badge), `adminFirestoreNavigationRepository.ts` (Firebase Admin SDK D-002 compliant), dan `liveFirestoreNavigationService.ts` (2-tier query + tree hierarchy builder).
+   - Admin dashboard route `src/app/(dashboard)/batutv-control/navigasi/page.tsx` dan alias `src/app/(dashboard)/batutv-control/navigation/page.tsx` terintegrasi bersih ke Next.js App Router dan terverifikasi pada tabel rute `next build`.
+   - Pola arsitektur D-027 terverifikasi: Admin SPA tetap murni menggunakan Client SDK store untuk CRUD dengan proteksi keamanan server-enforced pada `firestore.rules`.
+3. **Sub-Task 3 (Site Settings & Footer Management)**:
+   - Feature slice `src/features/settings/` dibangun lengkap dengan validasi Zod (`schemas.ts`) untuk domain `SiteSettings` (identity, logos, favicon, colors, typography, seo, publisher, socialMedia, verification) dan `FooterConfig` (mediaInfo, companyLinks, legalLinks, socialMedia, copyright, logo, mediaNetworks).
+   - 2-Tier Architecture Admin SDK murni (`adminFirestoreSiteSettingsRepository.ts`, `liveFirestoreSiteSettingsService.ts`, `adminFirestoreFooterRepository.ts`, `liveFirestoreFooterService.ts`) bebas dari Client SDK di konteks server (D-002 & D-027).
+   - Penegakan D-027 pada panel admin: Komponen SPA `SiteSettingsModule.tsx` dan `FooterManagementModule.tsx` tetap murni menggunakan Client SDK store (`siteSettingsStore.ts` & `footerAdminStore.ts`) tanpa mengimpor Server Actions.
+   - Normalisasi Rute Admin: Disediakan rute kanonik `/batutv-control/settings`, rute alias redirect `/batutv-control/site-settings`, dan `/batutv-control/footer` yang terintegrasi di Next.js App Router, `Sidebar.tsx`, `DashboardLayout.tsx`, dan `rbac.ts`.
+   - Server-Rendered Public Portal: Komponen `src/app/(portal)/layout.tsx` mengambil data live Firestore Admin SDK via `fetchFooterConfigLive()` dan `fetchSiteSettingsLive()`, menghasilkan dynamic root metadata SEO dan me-render komponen `<Footer>` secara SSR dengan fallback graceful ke seed cache.
+   - Verifikasi Build: `npm run typecheck` (`0 error`) dan `npx next build --webpack` (104 halaman statis & dinamis ter-generate sukses bersih).
+4. **Sub-Task 4 (Users & RBAC Management)**:
+   - Feature slice `src/features/users/` distandarisasi lengkap dengan validasi Zod (`schemas.ts`), tipe data kanonik (`types.ts`), Firebase Admin SDK repository 2-tier (`data/adminFirestoreUserRepository.ts`), server fetcher (`data/liveFirestoreUserService.ts`), dan Server Actions (`actions.ts`).
+   - Standardisasi Role Kanonik RBAC: Mengunci 3 peran hierarkis (`superadmin` [3], `editor` [2], `reporter` [1]) dengan fungsi normalisasi `toCanonicalRole()` yang menjaga backward-compatibility terhadap data lama (`administrator`, `redaksi`, `kontributor`).
+   - Alur Migrasi Non-Destruktif (D-020): Komponen modal migrasi pengguna (`UserMigrationModal.tsx`) memungkinkan Superadmin menghubungkan akun staf lama (`usr-XXX`) ke UID autentikasi Firebase (`users/{uid}`) secara interaktif di CMS admin.
+   - Client Bridge Pemisahan Bundler: Dibuat `serverActions.client.ts` untuk memisahkan pemanggilan Server Action dari modul Node.js backend (`firebase-admin`), memastikan lingkungan dev Vite tidak membocorkan modul native ke browser bundle.
+   - Integrasi Admin Module & Routing: `UserManagementModule.tsx` terintegrasi pada rute `/batutv-control/users` dan didukung proteksi keamanan sesi kriptografis.
+   - Verifikasi: `npm run typecheck` (0 error) dan `compile_applet` (Build succeeded).
+
 ## Catatan Kredensial Firebase Admin Service Account (Prasyarat CI/CD & Production Build)
 Untuk pipeline CI/CD produksi mandiri penuh di luar sandbox:
 - **Kebutuhan**: Environment variable `FIREBASE_SERVICE_ACCOUNT_KEY` (JSON private key) atau kredensial ADC GCP (`GOOGLE_APPLICATION_CREDENTIALS`) diperlukan agar Next.js Server Components dan Node.js build runner dapat mengautentikasi Firestore live secara langsung tanpa fallback seed.
@@ -162,7 +197,30 @@ Untuk pipeline CI/CD produksi mandiri penuh di luar sandbox:
 1. Unit testing suite untuk mapper, Zod schema, dan repository.
 2. Pengintegrasian/pemberdayaan `ArticleBentoGrid` & `ArticleSkeleton` di rute portal publik.
 
-## Technical Debt Teridentifikasi (Fase 2 & 4)
+## Progres Terverifikasi Fase 7 (Poin 1, Poin 3 & Poin 4)
+1. **Poin 1 — Strict Mode TypeScript**:
+   - `"strict": true` diaktifkan pada `tsconfig.json`.
+   - File legacy SPA yang dijadwalkan untuk dipensiunkan pada Poin 7 (`src/main.tsx`, `src/App.tsx`, `server.ts`) ditambahkan ke array `exclude` pada `tsconfig.json` sesuai arahan arsitektur.
+   - Perbaikan ketat type safety pada komponen aktif:
+     - `src/components/LatestNewsSection.tsx`: Menambahkan `PopularNewsItemData` pada callback `onSelectPost` agar selaras dengan `SharedSidebar`.
+     - `src/components/LatestVideosSection.tsx`: Menambahkan `PopularNewsItemData` pada callback `onSelectArticle`.
+     - `src/components/author/AuthorArchivePage.tsx`: Menjaga string null safety pada `setMetaTag` untuk `og:description` dan `og:image`.
+     - `src/features/articles/actions.ts`: Menyelaraskan field `publishedAt` agar bertipe `string` (`''` jika draft) sesuai kontrak `AdminArticle`.
+   - Verifikasi sukses: `npx tsc --noEmit` (0 errors, EXIT 0), `npx next build --webpack` (104/104 static pages generated, EXIT 0).
+
+2. **Poin 3 — Konsolidasi Lockfile**:
+   - Analisis dependensi kunci (`next`, `react`, `firebase`, `firebase-admin`, `motion`, `tailwindcss`) menunjukkan keselarasan semver antara `bun.lock` dan `package-lock.json`.
+   - `bun.lock` dihapus secara permanen; `package-lock.json` ditetapkan sebagai satu-satunya Source of Truth.
+   - Verifikasi sukses: `npm install` (bersih, EXIT 0), `npx tsc --noEmit` (0 errors, EXIT 0), `npx next build --webpack` (104/104 static pages generated, EXIT 0).
+   - Commit terpisah: `build(deps): remove bun.lock and consolidate on package-lock.json` (`504d857`).
+
+2. **Poin 4 — npm audit fix**:
+   - `npm audit` awal: 9 vulnerabilities (moderate severity) pada `qs` (via `body-parser`/`express`) dan `uuid` (via `@google-cloud/storage`, `gaxios`, `teeny-request`, `firebase-admin`).
+   - `npm audit fix` (tanpa `--force`) berhasil memutakhirkan dan menutup 7 vulnerabilities (`uuid`, `gaxios`, `teeny-request`, `retry-request`).
+   - 2 vulnerability moderate tersisa (qs via express dependency) — akan hilang otomatis saat server.ts/Express diarsipkan di Poin 7, tidak perlu tindakan terpisah.
+   - Verifikasi ulang: `npx tsc --noEmit` (0 errors, EXIT 0), `npx next build --webpack` (104/104 static pages, EXIT 0).
+
+## Technical Debt Teridentifikasi (Fase 2, 4 & 6)
 1. **Penyimpanan Gambar sebagai DataURL Base64 di Firestore (Fase 4)**:
    - *Kondisi*: Dokumen pada koleksi `/media` berpotensi menyimpan string base64 (`data:image/webp;base64,...`) langsung di field `url` bila diunggah via canvas client.
    - *Risiko*: Batas ukuran dokumen Firestore adalah 1MB per dokumen. Base64 menambah overhead ukuran (~33%), dan setiap operasi pembacaan dokumen mentransfer seluruh string base64 sehingga membebani bandwidth/read cost dibanding file URL di CDN/Storage.
@@ -175,6 +233,22 @@ Untuk pipeline CI/CD produksi mandiri penuh di luar sandbox:
 
 3. **Migrasi Server Fetcher ke Firebase Admin SDK (D-002 Compliance - Selesai di Fase 3)**:
    - Selesai termigrasi ke arsitektur 2-tier murni (Admin SDK -> Static Seed Cache) pada Fase 3.
+
+4. **Risiko Arsitektur Dual-Runtime (Vite SPA + Next.js App Router)**:
+   - *Kondisi*: Selama masa transisi migrasi, aplikasi menjalankan Vite dev server (SPA klien dev port 3000) dan Next.js (SSR / App Router). Komponen yang digunakan bersama antar kedua environment (misal komponen atomik/logo visual) memiliki risiko bentrok instance React atau dispatcher mismatch jika mengikat state hook.
+   - *Mitigasi Sementara*: Deduplikasi dependensi di `vite.config.ts` (`resolve.dedupe: ['react', 'react-dom']`) serta menjaga komponen presentasional atomik tetap stateless/hookless (D-028).
+   - *Penyelesaian Definitif (Fase 7)*: Pemensiunan total SPA legacy (`App.tsx` dan Express `server.ts`) pada Fase 7 (Cutover) sesuai mandat D-004. Mengeliminasi runtime Vite secara penuh akan memusnahkan kelas bug dual-bundler ini secara permanen.
+
+5. **SUPERADMIN_EMAILS hardcoded di setUserRoleAction — sisa pola transisi D-017 yang belum sepenuhnya dihapus**:
+   - *Kondisi*: Pada `setUserRoleAction` (`src/features/auth/serverActions.ts`), whitelist email hardcoded (`SUPERADMIN_EMAILS`) masih digunakan sebagai salah satu penentu akses untuk menjalankan aksi penyematan peran, mendampingi pengecekan custom claim `hasSuperadminClaim`.
+   - *Risiko Operasional*: Ini persis pola transisi D-017 yang sebelumnya ditinggalkan sementara di Fase 3 saat transisi ke custom claims. Jika di masa depan terdapat superadmin baru di luar daftar email hardcoded ini (misalnya pergantian kepemilikan project atau penambahan owner), mereka tidak akan dapat menjalankan `setUserRoleAction` meskipun custom claim mereka sudah `superadmin` — kecuali kode ini di-redeploy manual untuk menambahkan email mereka ke daftar. Kondisi ini bertentangan dengan tujuan arsitektur custom claims yang dirancang agar penambahan dan pencabutan admin tidak memerlukan redeploy kode.
+   - *Rencana Mitigasi*: Rencanakan penghapusan whitelist ini di Fase 7 setelah dipastikan seluruh alur custom claims (`hasSuperadminClaim`) berjalan stabil tanpa perlu fallback email.
+   - **Update Keputusan (Fase 7)**: Penghapusan whitelist SUPERADMIN_EMAILS DITUNDA secara sadar sampai setelah Fase 7 selesai — bukan karena teknis sulit, tapi karena baru 1 dari beberapa akun staf (dzakyinne@gmail.com) yang benar-benar teruji dengan custom claims di real login flow (4 akun staf redaksi lain masih berstatus seed-only, belum pernah login). Menghapus fallback email sekarang berisiko mengunci akses total kalau custom claims bermasalah, tanpa jalan masuk cadangan.
+   - **Syarat sebelum dieksekusi nanti**:
+     1. Minimal 2-3 akun staf sudah onboarding penuh (custom claims aktif + pernah login sukses lewat SOP di Sub-Task 7).
+     2. Owner project sudah login-test berkali-kali dalam kondisi berbeda (browser berbeda, setelah logout-login ulang) untuk memastikan custom claims persisten.
+     3. Konfirmasi eksplisit dari owner project sebelum whitelist dihapus dan rules di-deploy.
+   - **Status**: DITUNDA, bukan dibatalkan. Dicatat sebagai item terbuka pasca-Fase 7.
 
 
 ## Status Keamanan & Lingkungan Database Firestore (Audit 2026-09-03)
@@ -202,3 +276,76 @@ Untuk pipeline CI/CD produksi mandiri penuh di luar sandbox:
    - `npx tsc --noEmit`: Lolos bersih `EXIT: 0` dengan 0 error.
 3. **Status Domain Code**:
    - `src/features/articles/` terverifikasi aktif sesuai D-016 di `DECISIONS.md`.
+
+## Rencana Masa Depan (Belum Dijadwalkan — Referensi Saja)
+
+### Kemungkinan Migrasi Konten dari WordPress
+Pemilik project menyampaikan kemungkinan suatu saat membutuhkan migrasi/import konten dari
+WordPress ke platform ini (misalnya artikel, media, atau taksonomi dari situs WordPress lama).
+Ini BUKAN bagian dari 7 fase migrasi Next.js yang sedang berjalan — murni dicatat sebagai
+kebutuhan potensial di masa depan.
+
+Catatan teknis awal (untuk referensi kalau nanti benar-benar dikerjakan):
+- WordPress mengekspos data lewat WXR (WordPress eXtended RSS, format XML export bawaan)
+  atau REST API (`/wp-json/wp/v2/posts`, `/wp-json/wp/v2/media`, dll).
+- Struktur data WordPress (post, page, category, tag, media attachment) punya kemiripan
+  konsep dengan skema Firestore yang sudah ada di project ini (AdminArticle, AdminPage,
+  AdminCategory, AdminTag, AdminMedia) — kemungkinan besar bisa dipetakan dengan adapter
+  mirip `articleMapper.ts`/`videoMapper.ts` yang sudah ada.
+- Kalau nanti dikerjakan, sebaiknya jadi fase/task terpisah di luar 7 fase migrasi ini,
+  dengan audit dulu: volume konten WordPress yang akan dimigrasikan, apakah perlu one-time
+  import script atau sinkronisasi berkelanjutan, dan mapping field yang tidak 1:1.
+
+**Status**: Tidak dijadwalkan. Tidak ada tindakan yang perlu diambil sekarang.
+
+### Kemungkinan Migrasi Database dari Firestore ke PostgreSQL (via Supabase)
+
+Pemilik project menyampaikan rencana untuk mempertimbangkan migrasi database dari
+Firebase Firestore ke PostgreSQL, menggunakan Supabase sebagai penyedia terkelola
+(alasan utama: biaya lebih rendah dan predictable dibanding Firestore untuk tahap
+pengembangan, plus ekosistem yang mirip — Auth, Storage, Realtime — dalam satu
+paket). Rencana untuk hosting juga mengarah ke VPS (bukan platform serverless
+seperti Vercel), meski ini keputusan terpisah dari migrasi database.
+
+**Ini BUKAN bagian dari 7 fase migrasi Next.js yang sedang berjalan** — dicatat
+sebagai kebutuhan potensial di masa depan (tentatif "Fase 8"), dieksekusi setelah
+Fase 7 (Cutover) benar-benar tuntas dan stabil di production.
+
+**Mengapa migrasi ini relatif lebih mudah dibanding proyek migrasi framework:**
+Arsitektur project ini sejak awal menerapkan *repository pattern* (D-003) — setiap
+domain (articles, videos, taxonomy, pages, settings, users) punya interface
+(`IArticleRepository`, dst.) sebagai satu-satunya pintu masuk data. Kode UI, Server
+Component, dan Server Action tidak pernah memanggil Firestore SDK secara langsung.
+Secara teori, migrasi ke Postgres berarti menulis implementasi baru di balik
+interface yang sama, tanpa mengubah kode di lapisan atas.
+
+**Kewaspadaan yang perlu diperhatikan (bukan tindakan sekarang):**
+1. Field bertipe *array of strings* (mis. `tags: string[]` pada artikel,
+   `contentTypes` pada taksonomi) akan butuh dipetakan ke tabel relasi/junction
+   terpisah di skema Postgres — bukan sekadar kolom array.
+2. Custom claims RBAC (role di Firebase Auth token) — Supabase Auth punya konsep
+   serupa (JWT claims), tapi implementasinya berbeda dan perlu ditulis ulang
+   sepenuhnya, termasuk seluruh alur session cookie httpOnly yang sudah dibangun
+   di Fase 3.
+3. Row Level Security (RLS) di Postgres/Supabase konsepnya mirip `firestore.rules`
+   (aturan akses di level baris data), tapi sintaksnya SQL policy — seluruh rules
+   yang sudah ditulis (termasuk perbaikan insiden D-017) perlu ditulis ulang total.
+4. Real-time listener (`onSnapshot`, dipakai di pola D-025 untuk store SPA admin)
+   perlu porting logic ke Supabase Realtime (berbasis Postgres logical
+   replication/WAL) — model konsepnya berbeda.
+
+**Langkah praktis kalau nanti benar-benar dikerjakan:**
+1. Desain skema relasional (tabel `articles`, `categories`, `tags`,
+   `article_tags`, dst.) berdasarkan struktur data yang sudah ada di Firestore.
+2. Gunakan tool migrasi resmi Supabase (`firebase-to-supabase`) untuk transformasi
+   dan impor data.
+3. Tulis ulang setiap implementasi repository (`postgresArticleRepository`, dst.)
+   dengan backend Supabase/Postgres, sambil mempertahankan interface yang sama
+   persis dengan yang dipakai sekarang.
+4. Migrasi bertahap per-domain (mirip pola vertical-slice yang dipakai di migrasi
+   Next.js ini) — articles dulu, baru videos, baru taxonomy, dst.
+5. Uji paralel (dual-write atau shadow-read) sebelum cutover penuh ke Postgres.
+
+**Status**: Tidak dijadwalkan. Tidak ada tindakan yang perlu diambil sekarang.
+Referensi Supabase pricing (per riset awal): Free tier (500MB DB, 50rb MAU, 1GB
+storage), Pro $25/bulan (8GB DB, 100GB storage, 250GB bandwidth).

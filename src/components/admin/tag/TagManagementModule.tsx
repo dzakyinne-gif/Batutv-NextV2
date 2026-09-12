@@ -26,7 +26,6 @@ import {
 import { TagListView } from './TagListView';
 import { TagFormModal } from './TagFormModal';
 import { TagDeleteModal } from './TagDeleteModal';
-import { isEditorOrHigherRole } from '../../../utils/rbac';
 
 interface TagManagementModuleProps {
   onNavigateToPublic?: (path: string) => void;
@@ -40,8 +39,13 @@ export const TagManagementModule: React.FC<TagManagementModuleProps> = ({
   // Master state for tags with live counts
   const [tags, setTags] = useState<AdminTag[]>(() => getTagsWithCounts());
 
-  // RBAC check: Super Admin, Redaksi, Editor can mutate. Jurnalis, Wartawan, Reporter are read-only.
-  const canManage = !currentUser || isEditorOrHigherRole(currentUser?.role);
+  // RBAC check: Only Admin, Redaksi, Editor can mutate. Jurnalis, Wartawan, Kontributor are read-only.
+  const userRole = (currentUser?.role || '').toLowerCase();
+  const canManage =
+    !currentUser ||
+    userRole.includes('admin') ||
+    userRole.includes('redaksi') ||
+    userRole.includes('editor');
 
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);

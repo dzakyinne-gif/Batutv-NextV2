@@ -25,12 +25,7 @@ import {
 import { AdminArticle, ArticleStatus, AdminMedia, AdminUser, AdminCategory } from '../../../types/admin';
 import { getStoredCategories, CATEGORIES_UPDATED_EVENT } from '../../../data/categoryAdminStore';
 import { getActiveAuthors } from '../../../data/authorAdminStore';
-import {
-  checkArticleEditPermission,
-  canRolePublish,
-  canRoleManageHeadlines,
-  normalizeUserRole,
-} from '../../../utils/rbac';
+import { checkArticleEditPermission, canRolePublish, canRoleManageHeadlines, normalizeUserRole } from '../../../utils/rbac';
 import { NewsRichEditor } from './NewsRichEditor';
 import { NewsPreviewModal } from './NewsPreviewModal';
 import { MediaPickerModal } from '../media/MediaPickerModal';

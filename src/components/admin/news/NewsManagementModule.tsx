@@ -13,12 +13,7 @@ import {
   removeArticleFromHeadline,
   updateHeadlineOrder,
 } from '../../../data/newsAdminStore';
-import {
-  canRolePublish,
-  canRolePermanentDelete,
-  canRoleTrashPublished,
-  canRoleManageHeadlines,
-} from '../../../utils/rbac';
+import { canRolePublish, canRolePermanentDelete, canRoleManageHeadlines, normalizeUserRole } from '../../../utils/rbac';
 import { NewsListView } from './NewsListView';
 import { NewsEditorView } from './NewsEditorView';
 import { NewsToast, ToastMessage } from './NewsToast';
@@ -131,7 +126,8 @@ export const NewsManagementModule: React.FC<NewsManagementModuleProps> = ({
 
   const handleTrashArticle = (id: string) => {
     const target = articles.find((a) => a.id === id);
-    if (!canRoleTrashPublished(currentUser?.role) && target?.status === 'published') {
+    const userRole = normalizeUserRole(currentUser?.role);
+    if ((userRole === 'reporter' || userRole === 'kontributor') && target?.status === 'published') {
       showToast(
         'error',
         'Akses Dibatasi',

@@ -21,7 +21,6 @@ import { MaintenanceModeTab } from './MaintenanceModeTab';
 import { SecuritySettingsTab } from './SecuritySettingsTab';
 import { SystemHealthTab } from './SystemHealthTab';
 import { AdminUser } from '../../../types/admin';
-import { isSuperAdminRole, isEditorRole, isReporterRole } from '../../../utils/rbac';
 
 interface SystemSettingsModuleProps {
   currentUser: AdminUser | null;
@@ -52,9 +51,9 @@ export const SystemSettingsModule: React.FC<SystemSettingsModuleProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<SystemSettingsTab>('info');
 
-  const isAdmin = isSuperAdminRole(currentUser?.role);
-  const isEditor = isEditorRole(currentUser?.role);
-  const isPenulis = isReporterRole(currentUser?.role);
+  const isAdmin = currentUser?.role === 'Administrator';
+  const isEditor = currentUser?.role === 'Editor';
+  const isPenulis = currentUser?.role === 'Penulis';
 
   // Access Restriction for Penulis
   if (isPenulis) {

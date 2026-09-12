@@ -248,3 +248,39 @@
   - Satu sistem peran tunggal yang seragam dari token klaim Firebase Auth, cookie sesi SSR, hingga penyimpanan dokumen database Firestore.
   - Menghilangkan ambiguitas pemetaan peran pada UI formulir dan pengelolaan staf redaksi.
   - Kompatibilitas mundur tetap terlindungi secara aman selama proses transisi migrasi data.
+
+### D-027: Adopsi Proaktif Arsitektur Dua-Jalur (Client Store vs Server SDK) dan Proteksi Reserved Slug Root Rute
+- **Status**: Diterima
+- **Tanggal**: 2026-09-04 (Fase 6 Inisiasi & Sub-Task 1)
+- **Konteks**:
+  1. Pengalaman Fase 5 membuktikan bahwa mengimpor Server Actions (`'use server'`) langsung ke dalam komponen admin SPA (`'use client'`) memicu error runtime browser `Class extends value undefined` akibat kebocoran modul Node.js Server (`firebase-admin`).
+  2. Domain Fase 6 (Pages, Navigation, Settings/Footer, Users) memiliki struktur komponen admin SPA interaktif yang sudah stabil (`PageManagementModule.tsx`, `NavigationManagementModule.tsx`, dll). Menghubungkan Server Actions ke komponen-komponen ini beresiko mengulang siklus bug blank screen yang sama.
+  3. Dynamic single-segment route di root `src/app/(portal)/[slug]/page.tsx` memiliki potensi tabrakan routing dengan rute literal sistem lainnya (`video`, `kategori`, `tag`, `berita`, `login`, `batutv-control`, `api`, `sitemap.xml`, dll).
+- **Keputusan**:
+  1. **Adopsi Proaktif Pola D-025 untuk Fase 6**:
+     - Komponen admin SPA (`*ManagementModule.tsx` / client views) secara murni dan konsisten menggunakan **Client Store + Firestore Client SDK + rules-based RBAC** (`pagesAdminStore.ts`, `navigationStore.ts`, `siteSettingsStore.ts`, `userAdminStore.ts`). Dilarang mengimpor Server Actions ke komponen-komponen admin ini.
+     - Server Actions (`'use server'`) dan Firebase Admin SDK (`liveFirestore*Service.ts`) HANYA dibangun untuk kebutuhan SSR portal publik (seperti `generateMetadata()`, `generateStaticParams()`, atau rute data fetching server murni pada `src/app/(portal)/[slug]/page.tsx`).
+  2. **Proteksi Reserved Slugs**:
+     - Menetapkan daftar kata terlarang sistem (`RESERVED_PAGE_SLUGS`) dan memvalidasinya secara ketat menggunakan Zod schema (`pageSchema`) serta fungsi helper pembentukan slug:
+       `['video', 'kategori', 'tag', 'login', 'berita', 'batutv-control', 'api', 'sitemap.xml', 'robots.txt', 'favicon.ico', 'categories', 'tags', 'videos', 'dashboard', 'authors', 'penulis', 'media', 'pengaturan', 'settings']`.
+     - Slug pada formulir pembuatan/edit halaman wajib divalidasi agar tidak boleh sama dengan kata kunci terlarang ini, mencegah rute catch-all menimpa rute literal Next.js.
+- **Konsekuensi**:
+  - Mencegah timbulnya bug runtime `Class extends value undefined` sejak awal di seluruh modul Fase 6.
+  - Menjaga kebersihan bundler klien Vite/Next.js tanpa resiko kebocoran modul Node.js.
+  - Mencegah konflik rute pada level dynamic catch-all single-segment root Next.js.
+
+### D-028: Resolusi Dependensi Dual-Runtime (Vite + Next.js) dan Normalisasi Rute Kanonik Dasbor
+- **Status**: Diterima
+- **Tanggal**: 2026-09-11 (Fase 6 Sub-Task 2 Review)
+- **Konteks**:
+  1. Lingkungan proyek beroperasi dalam masa transisi dual-runtime: Vite menjalankan dev server SPA klien pada port 3000 (`"dev": "vite"`), sementara Next.js App Router mengompilasi rute SSR/SSG (`next build`).
+  2. Komponen atom/visual seperti `BatuTVBrandLogo.tsx` sempat menggunakan hook `useState` untuk fallback gambar dan memicu potensi "Invalid hook call" saat dievaluasi di lingkungan dual-bundler di mana pre-bundler Vite belum memiliki konfigurasi deduplikasi dependensi React.
+  3. Rute dasbor menu navigasi sempat diimplementasikan dengan `/batutv-control/navigasi` sebagai kanonik dan `/navigation` sebagai alias. Hal ini menyimpang dari konvensi penamaan kanonik bahasa Inggris yang telah ditegakkan pada rute-rute lainnya (`/videos`, `/categories`, `/tags`, `/pages`, `/media`, `/articles`).
+- **Keputusan**:
+  1. Menjaga komponen atom/visual seperti `BatuTVBrandLogo` tetap berstatus stateless/hookless (menggunakan DOM event `onError` native), dan mengunci deduplikasi paket React di `vite.config.ts` (`resolve.dedupe: ['react', 'react-dom']`).
+  2. Menormalkan rute kanonik navigasi menjadi `/batutv-control/navigation` (bahasa Inggris kanonik), dengan `/batutv-control/navigasi` dialihkan sebagai alias redirect.
+  3. Menyelaraskan tautan menu `Sidebar.tsx`, resolusi tampilan `DashboardLayout.tsx`, dan pemeriksaan `rbac.ts` agar sepenuhnya konsisten.
+- **Konsekuensi**:
+  - Stabilitas runtime React terjamin dan bebas dari konflik multiple instance / dispatcher mismatch.
+  - Konvensi penamaan rute dasbor kembali 100% konsisten di seluruh aplikasi.
+

@@ -33,8 +33,8 @@ import { AdminArticle, ArticleStatus, AdminUser } from '../../../types/admin';
 import {
   canRolePublish,
   canRolePermanentDelete,
-  canRoleTrashPublished,
   canRoleManageHeadlines,
+  canRoleTrashPublished,
   normalizeUserRole,
 } from '../../../utils/rbac';
 import { NewsPreviewModal } from './NewsPreviewModal';

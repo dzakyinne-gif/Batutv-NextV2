@@ -23,7 +23,6 @@ import {
 import { CategoryListView } from './CategoryListView';
 import { CategoryFormModal } from './CategoryFormModal';
 import { CategoryDeleteModal } from './CategoryDeleteModal';
-import { isEditorOrHigherRole } from '../../../utils/rbac';
 
 interface CategoryManagementModuleProps {
   onNavigateToPublic?: (path: string) => void;
@@ -38,8 +37,13 @@ export const CategoryManagementModule: React.FC<CategoryManagementModuleProps> =
   const [categories, setCategories] = useState<AdminCategory[]>(() => getCategoriesWithCounts());
   const [isLoading, setIsLoading] = useState(false);
 
-  // RBAC check: Super Admin, Redaksi, Editor can mutate. Jurnalis, Wartawan, Reporter are read-only.
-  const canManage = !currentUser || isEditorOrHigherRole(currentUser?.role);
+  // RBAC check: Only Admin, Redaksi, Editor can mutate. Jurnalis, Wartawan, Kontributor are read-only.
+  const userRole = (currentUser?.role || '').toLowerCase();
+  const canManage =
+    !currentUser ||
+    userRole.includes('admin') ||
+    userRole.includes('redaksi') ||
+    userRole.includes('editor');
 
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);

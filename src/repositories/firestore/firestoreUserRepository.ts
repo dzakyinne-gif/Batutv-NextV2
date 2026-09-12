@@ -14,7 +14,7 @@ import { db } from '../../lib/firebase';
 import { CMSUser, UserRole, UserStatus } from '../../types/user';
 import { IUserRepository, UserQueryOptions } from '../IUserRepository';
 import { sanitizeForFirestore } from './converterUtils';
-import { INITIAL_CMS_USERS } from '../../data/userAdminStore';
+import { INITIAL_CMS_USERS } from '../../data/initialUsers';
 import { toCanonicalRole } from '../../types/user';
 
 const USERS_COLLECTION = 'users';
@@ -42,6 +42,7 @@ export function toUserFirestoreDocument(user: CMSUser): Record<string, any> {
     password: user.password || 'Password@123',
     role: canonicalRole,
     status: user.status || 'aktif',
+    migrationStatus: user.migrationStatus || (['usr-005', 'usr-006', 'usr-007', 'usr-008', 'usr-009'].includes(user.id) ? 'unmigrated' : 'migrated'),
     authorId: user.authorId || null,
     authorName: user.authorName || null,
     authorPosition: user.authorPosition || null,
@@ -67,6 +68,7 @@ export function fromUserFirestoreDocument(id: string, data: Record<string, any>)
     password: data.password || 'Password@123',
     role: canonicalRole,
     status: (data.status as UserStatus) || 'aktif',
+    migrationStatus: (data.migrationStatus as any) || (['usr-005', 'usr-006', 'usr-007', 'usr-008', 'usr-009'].includes(id) ? 'unmigrated' : 'migrated'),
     authorId: data.authorId || null,
     authorName: data.authorName || undefined,
     authorPosition: data.authorPosition || undefined,
@@ -200,21 +202,31 @@ export class FirestoreUserRepository implements IUserRepository {
     onNext: (users: CMSUser[]) => void,
     onError?: (error: Error) => void
   ): () => void {
-    const colRef = collection(db, USERS_COLLECTION);
-    return onSnapshot(
-      colRef,
-      (snap) => {
-        const list: CMSUser[] = [];
-        snap.forEach((docSnap) => {
-          list.push(fromUserFirestoreDocument(docSnap.id, docSnap.data()));
-        });
-        onNext(list);
-      },
-      (err) => {
-        console.warn('[FirestoreUserRepository] subscription error:', err);
-        if (onError) onError(err);
-      }
-    );
+    if (!db) {
+      console.warn('[FirestoreUserRepository] db instance is not available');
+      return () => {};
+    }
+    try {
+      const colRef = collection(db, USERS_COLLECTION);
+      return onSnapshot(
+        colRef,
+        (snap) => {
+          const list: CMSUser[] = [];
+          snap.forEach((docSnap) => {
+            list.push(fromUserFirestoreDocument(docSnap.id, docSnap.data()));
+          });
+          onNext(list);
+        },
+        (err) => {
+          console.warn('[FirestoreUserRepository] subscription error:', err);
+          if (onError) onError(err);
+        }
+      );
+    } catch (err) {
+      console.warn('[FirestoreUserRepository] subscribe setup error:', err);
+      if (onError && err instanceof Error) onError(err);
+      return () => {};
+    }
   }
 }
 

@@ -74,11 +74,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       case '/batutv-control/pages':
       case '/batutv-control/master-data/pages':
         return 'Master Data Pages';
+      case '/batutv-control/navigation':
       case '/batutv-control/navigasi':
         return 'Manajemen Navigasi SO2';
       case '/batutv-control/footer':
       case '/batutv-control/master-data/footer':
         return 'Master Data Footer';
+      case '/batutv-control/settings':
       case '/batutv-control/site-settings':
       case '/batutv-control/master-data/site-settings':
         return 'Master Data Site Settings';
@@ -155,6 +157,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       case '/batutv-control/master-data/pages':
         return <PageManagementModule onNavigateToPublic={onNavigate} />;
 
+      case '/batutv-control/navigation':
       case '/batutv-control/navigasi':
         return <NavigationManagementModule onNavigateToPublic={onNavigate} />;
 
@@ -162,6 +165,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       case '/batutv-control/master-data/footer':
         return <FooterManagementModule onNavigateToPublic={onNavigate} />;
 
+      case '/batutv-control/settings':
       case '/batutv-control/site-settings':
       case '/batutv-control/master-data/site-settings':
         return <SiteSettingsModule onNavigateToPublic={onNavigate} />;

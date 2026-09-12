@@ -1,6 +1,7 @@
-import { UserRole, toCanonicalRole } from '../types/user';
+import { UserRole, RolePermissionDetail, CanonicalUserRole, toCanonicalRole } from '../types/user';
 import { AdminArticle, AdminUser } from '../types/admin';
 import { ROLE_PERMISSIONS_MATRIX, getStoredUsers } from '../data/userAdminStore';
+import { logSystemActivity } from '../data/systemSettingsStore';
 
 /**
  * RBAC & PERMISSION SERVICE
@@ -14,26 +15,6 @@ import { ROLE_PERMISSIONS_MATRIX, getStoredUsers } from '../data/userAdminStore'
 
 export const normalizeUserRole = (roleStr?: string | null): UserRole => {
   return toCanonicalRole(roleStr);
-};
-
-export const isSuperAdminRole = (roleInput?: string | null): boolean => {
-  const role = normalizeUserRole(roleInput);
-  return role === 'superadmin' || role === 'admin';
-};
-
-export const isEditorRole = (roleInput?: string | null): boolean => {
-  const role = normalizeUserRole(roleInput);
-  return role === 'editor' || role === 'redaksi';
-};
-
-export const isEditorOrHigherRole = (roleInput?: string | null): boolean => {
-  const role = normalizeUserRole(roleInput);
-  return role === 'superadmin' || role === 'admin' || role === 'editor' || role === 'redaksi';
-};
-
-export const isReporterRole = (roleInput?: string | null): boolean => {
-  const role = normalizeUserRole(roleInput);
-  return role === 'reporter' || role === 'kontributor';
 };
 
 export interface RouteAccessCheck {
@@ -52,8 +33,9 @@ export const checkRoutePermission = (
   path: string
 ): RouteAccessCheck => {
   const role = normalizeUserRole(roleInput);
-  const isSuperAdmin = isSuperAdminRole(roleInput);
-  const isEditorOrHigher = isEditorOrHigherRole(roleInput);
+  const isSuperAdmin = role === 'superadmin' || role === 'admin';
+  const isEditor = role === 'editor' || role === 'redaksi';
+  const isEditorOrHigher = isSuperAdmin || isEditor;
 
   // 1. Dashboard is accessible to all authenticated CMS users
   if (path === '/batutv-control/dashboard' || path === '/batutv-control') {
@@ -157,7 +139,7 @@ export const checkRoutePermission = (
     };
   }
 
-  if (path.startsWith('/batutv-control/navigasi')) {
+  if (path.startsWith('/batutv-control/navigation') || path.startsWith('/batutv-control/navigasi')) {
     if (isEditorOrHigher) {
       return { allowed: true, role, moduleName: 'Manajemen Navigasi SO2' };
     }
@@ -183,7 +165,11 @@ export const checkRoutePermission = (
     };
   }
 
-  if (path.startsWith('/batutv-control/site-settings') || path.startsWith('/batutv-control/master-data/site-settings')) {
+  if (
+    path.startsWith('/batutv-control/settings') ||
+    path.startsWith('/batutv-control/site-settings') ||
+    path.startsWith('/batutv-control/master-data/site-settings')
+  ) {
     if (isSuperAdmin) {
       return { allowed: true, role, moduleName: 'Master Data Site Settings' };
     }
@@ -232,46 +218,53 @@ export const checkRoutePermission = (
  * Article Publishing Permissions
  */
 export const canRolePublish = (roleInput?: string): boolean => {
-  return isEditorOrHigherRole(roleInput);
+  const role = normalizeUserRole(roleInput);
+  return role === 'superadmin' || role === 'admin' || role === 'editor' || role === 'redaksi';
 };
 
 /**
  * Permanent Deletion Permissions (Super Admin only)
  */
 export const canRolePermanentDelete = (roleInput?: string): boolean => {
-  return isSuperAdminRole(roleInput);
+  const role = normalizeUserRole(roleInput);
+  return role === 'superadmin' || role === 'admin';
 };
 
 /**
  * Move Published Content to Trash Permissions
  */
 export const canRoleTrashPublished = (roleInput?: string): boolean => {
-  return isEditorOrHigherRole(roleInput);
+  const role = normalizeUserRole(roleInput);
+  return role === 'superadmin' || role === 'admin' || role === 'editor' || role === 'redaksi';
 };
 
 /**
  * Headline Management Permissions
  */
 export const canRoleManageHeadlines = (roleInput?: string): boolean => {
-  return isEditorOrHigherRole(roleInput);
+  const role = normalizeUserRole(roleInput);
+  return role === 'superadmin' || role === 'admin' || role === 'editor' || role === 'redaksi';
 };
 
 /**
  * Video Management Permissions
  */
 export const canRoleManageVideos = (roleInput?: string): boolean => {
-  return isEditorOrHigherRole(roleInput);
+  const role = normalizeUserRole(roleInput);
+  return role === 'superadmin' || role === 'admin' || role === 'editor' || role === 'redaksi';
 };
 
 /**
  * User & Security Settings Permissions
  */
 export const canRoleManageUsers = (roleInput?: string): boolean => {
-  return isSuperAdminRole(roleInput);
+  const role = normalizeUserRole(roleInput);
+  return role === 'superadmin' || role === 'admin';
 };
 
 export const canRoleManageSystemSettings = (roleInput?: string): boolean => {
-  return isSuperAdminRole(roleInput);
+  const role = normalizeUserRole(roleInput);
+  return role === 'superadmin' || role === 'admin';
 };
 
 /**
@@ -328,8 +321,7 @@ export const checkArticleEditPermission = (
   user?: AdminUser | { email?: string; name?: string; authorId?: string } | null
 ): { allowed: boolean; isReadOnly: boolean; reason?: string } => {
   const role = normalizeUserRole(roleInput);
-  const isEditorOrHigher = isEditorOrHigherRole(roleInput);
-  const isReporter = isReporterRole(roleInput);
+  const isEditorOrHigher = role === 'superadmin' || role === 'admin' || role === 'editor' || role === 'redaksi';
 
   // New article creation is allowed for all roles
   if (!article) {
@@ -345,7 +337,7 @@ export const checkArticleEditPermission = (
   const isAuthor = isUserArticleAuthor(article, user);
 
   if (isAuthor) {
-    if (article.status === 'published' && isReporter) {
+    if (article.status === 'published' && (role === 'reporter' || role === 'kontributor')) {
       return {
         allowed: true,
         isReadOnly: true,
@@ -371,8 +363,9 @@ export const canUserDeleteArticle = (
   article: AdminArticle | null | undefined,
   user?: AdminUser | { email?: string; name?: string; authorId?: string } | null
 ): boolean => {
-  if (isEditorOrHigherRole(roleInput)) return true;
-  if (isReporterRole(roleInput)) {
+  const role = normalizeUserRole(roleInput);
+  if (role === 'superadmin' || role === 'admin' || role === 'redaksi' || role === 'editor') return true;
+  if (role === 'reporter' || role === 'kontributor') {
     return isUserArticleAuthor(article, user) && article?.status !== 'published';
   }
   return false;

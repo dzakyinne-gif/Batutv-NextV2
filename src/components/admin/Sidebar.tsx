@@ -37,13 +37,7 @@ import { getPagesCount } from '../../data/pagesAdminStore';
 import { getNavigationCounts } from '../../data/navigationStore';
 import { getStoredUsers, USER_UPDATED_EVENT } from '../../data/userAdminStore';
 import { AdminUser } from '../../types/admin';
-import {
-  normalizeUserRole,
-  isSuperAdminRole,
-  isEditorRole,
-  isEditorOrHigherRole,
-  isReporterRole,
-} from '../../utils/rbac';
+import { normalizeUserRole } from '../../utils/rbac';
 
 interface SidebarProps {
   currentPath: string;
@@ -85,10 +79,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
 }) => {
   const roleKey = normalizeUserRole(user?.role);
-  const isSuperAdmin = isSuperAdminRole(user?.role);
-  const isEditor = isEditorRole(user?.role);
-  const isEditorOrHigher = isEditorOrHigherRole(user?.role);
-  const isReporter = isReporterRole(user?.role);
+  const isSuperAdmin = roleKey === 'superadmin' || roleKey === 'admin';
+  const isEditor = roleKey === 'editor' || roleKey === 'redaksi';
+  const isReporter = roleKey === 'reporter' || roleKey === 'kontributor';
+  const isEditorOrHigher = isSuperAdmin || isEditor;
 
   // Live counts for news, video, category, media, tag, and author badge indicators
   const [counts, setCounts] = useState(() => getArticlesCounts());
@@ -193,7 +187,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ];
     }
 
-    // Super Admin & Editor (Full editorial capabilities)
+    // Admin, Redaksi, Editor, Super Admin
     return [
       {
         name: 'Semua Berita',
@@ -262,7 +256,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     // 1. KONTEN SECTION
     const kontenItems: MenuItem[] = [
       {
-        name: isReporter ? 'Naskah Berita' : 'Berita',
+        name: isReporter ? 'Naskah Tulisan' : 'Berita',
         path: '/batutv-control/berita',
         icon: Newspaper,
         badge: counts.all.toString(),
@@ -271,7 +265,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       },
     ];
 
-    // Videos are accessible to Super Admin & Editor
+    // Videos are accessible to Superadmin, Admin, Redaksi, and Editor
     if (isEditorOrHigher) {
       kontenItems.push({
         name: 'Video',
@@ -369,7 +363,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     // 3. MASTER DATA SECTION
     const masterItems: MenuItem[] = [];
 
-    // Penulis is visible to Super Admin and Editor
+    // Penulis is visible to Superadmin, Admin, Redaksi, and Editor
     if (isEditorOrHigher) {
       masterItems.push({
         name: 'Penulis',
@@ -380,7 +374,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       });
     }
 
-    // Pages, Navigasi, Footer for Super Admin & Editor (aligned with rbac.ts checkRoutePermission)
+    // Pages, Navigasi, Footer for Superadmin, Admin, Redaksi, and Editor
     if (isEditorOrHigher) {
       masterItems.push(
         {
@@ -392,7 +386,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         },
         {
           name: 'Navigasi',
-          path: '/batutv-control/navigasi',
+          path: '/batutv-control/navigation',
           icon: FolderTree,
           badge: navCount.toString(),
           isReady: true,
@@ -406,11 +400,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       );
     }
 
-    // Site Settings is for Super Admin
+    // Site Settings only for Superadmin / Admin
     if (isSuperAdmin) {
       masterItems.push({
         name: 'Site Settings',
-        path: '/batutv-control/site-settings',
+        path: '/batutv-control/settings',
         icon: Sliders,
         isReady: true,
       });
@@ -433,7 +427,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       });
     }
 
-    // 4. PENGATURAN SECTION (Only Super Admin)
+    // 4. PENGATURAN SECTION (Super Admin & Admin only)
     if (isSuperAdmin) {
       sections.push({
         title: 'PENGATURAN',
@@ -700,10 +694,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border shrink-0 ${
               isSuperAdmin ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-              isEditor ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-              'bg-blue-500/10 text-blue-400 border-blue-500/20'
+              roleKey === 'redaksi' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+              roleKey === 'editor' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+              isReporter ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+              'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
             }`}>
-              {roleKey.toUpperCase()}
+              {roleKey === 'superadmin' ? 'SUPER ADMIN' : roleKey.toUpperCase()}
             </span>
           </div>
 
